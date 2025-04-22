@@ -6,6 +6,17 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E1E0A2452DB25563002D10DE /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A2442DB25563002D10DE /* Auth */; };
+		E1E0A2472DB25563002D10DE /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A2462DB25563002D10DE /* Functions */; };
+		E1E0A2492DB25563002D10DE /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A2482DB25563002D10DE /* PostgREST */; };
+		E1E0A24B2DB25563002D10DE /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A24A2DB25563002D10DE /* Realtime */; };
+		E1E0A24D2DB25563002D10DE /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A24C2DB25563002D10DE /* Storage */; };
+		E1E0A24F2DB25563002D10DE /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A24E2DB25563002D10DE /* Supabase */; };
+		E1E0A26E2DB82246002D10DE /* SVGKit in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A26D2DB82246002D10DE /* SVGKit */; };
+		E1E0A2702DB82246002D10DE /* SVGKitSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A26F2DB82246002D10DE /* SVGKitSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		E1E0A2272DB25482002D10DE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -35,16 +46,6 @@
 			path = Fleetigo;
 			sourceTree = "<group>";
 		};
-		E1E0A2292DB25482002D10DE /* FleetigoTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = FleetigoTests;
-			sourceTree = "<group>";
-		};
-		E1E0A2332DB25482002D10DE /* FleetigoUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = FleetigoUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,6 +53,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E1E0A2702DB82246002D10DE /* SVGKitSwift in Frameworks */,
+				E1E0A2492DB25563002D10DE /* PostgREST in Frameworks */,
+				E1E0A26E2DB82246002D10DE /* SVGKit in Frameworks */,
+				E1E0A2472DB25563002D10DE /* Functions in Frameworks */,
+				E1E0A24F2DB25563002D10DE /* Supabase in Frameworks */,
+				E1E0A2452DB25563002D10DE /* Auth in Frameworks */,
+				E1E0A24D2DB25563002D10DE /* Storage in Frameworks */,
+				E1E0A24B2DB25563002D10DE /* Realtime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -76,8 +85,6 @@
 			isa = PBXGroup;
 			children = (
 				E1E0A2182DB2547F002D10DE /* Fleetigo */,
-				E1E0A2292DB25482002D10DE /* FleetigoTests */,
-				E1E0A2332DB25482002D10DE /* FleetigoUITests */,
 				E1E0A2172DB2547F002D10DE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -112,6 +119,14 @@
 			);
 			name = Fleetigo;
 			packageProductDependencies = (
+				E1E0A2442DB25563002D10DE /* Auth */,
+				E1E0A2462DB25563002D10DE /* Functions */,
+				E1E0A2482DB25563002D10DE /* PostgREST */,
+				E1E0A24A2DB25563002D10DE /* Realtime */,
+				E1E0A24C2DB25563002D10DE /* Storage */,
+				E1E0A24E2DB25563002D10DE /* Supabase */,
+				E1E0A26D2DB82246002D10DE /* SVGKit */,
+				E1E0A26F2DB82246002D10DE /* SVGKitSwift */,
 			);
 			productName = Fleetigo;
 			productReference = E1E0A2162DB2547F002D10DE /* Fleetigo.app */;
@@ -129,9 +144,6 @@
 			);
 			dependencies = (
 				E1E0A2282DB25482002D10DE /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				E1E0A2292DB25482002D10DE /* FleetigoTests */,
 			);
 			name = FleetigoTests;
 			packageProductDependencies = (
@@ -152,9 +164,6 @@
 			);
 			dependencies = (
 				E1E0A2322DB25482002D10DE /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				E1E0A2332DB25482002D10DE /* FleetigoUITests */,
 			);
 			name = FleetigoUITests;
 			packageProductDependencies = (
@@ -195,6 +204,10 @@
 			);
 			mainGroup = E1E0A20D2DB2547F002D10DE;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E1E0A2432DB25563002D10DE /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				E1E0A26C2DB82246002D10DE /* XCRemoteSwiftPackageReference "SVGKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E1E0A2172DB2547F002D10DE /* Products */;
 			projectDirPath = "";
@@ -558,6 +571,68 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E1E0A2432DB25563002D10DE /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+		E1E0A26C2DB82246002D10DE /* XCRemoteSwiftPackageReference "SVGKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SVGKit/SVGKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E1E0A2442DB25563002D10DE /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1E0A2432DB25563002D10DE /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		E1E0A2462DB25563002D10DE /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1E0A2432DB25563002D10DE /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		E1E0A2482DB25563002D10DE /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1E0A2432DB25563002D10DE /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		E1E0A24A2DB25563002D10DE /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1E0A2432DB25563002D10DE /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		E1E0A24C2DB25563002D10DE /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1E0A2432DB25563002D10DE /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		E1E0A24E2DB25563002D10DE /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1E0A2432DB25563002D10DE /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		E1E0A26D2DB82246002D10DE /* SVGKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1E0A26C2DB82246002D10DE /* XCRemoteSwiftPackageReference "SVGKit" */;
+			productName = SVGKit;
+		};
+		E1E0A26F2DB82246002D10DE /* SVGKitSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1E0A26C2DB82246002D10DE /* XCRemoteSwiftPackageReference "SVGKit" */;
+			productName = SVGKitSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E1E0A20E2DB2547F002D10DE /* Project object */;
 }
