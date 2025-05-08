@@ -5,6 +5,8 @@
 //  Created by Avinash on 08/05/25.
 //
 
+import SwiftUI
+
 
 struct IssueReportDetailView: View {
     let report: IssueReport
