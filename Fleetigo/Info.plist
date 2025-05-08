@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- For getting location when app is in use -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>We need your location to show your position on the map.</string>
+
+    <!-- Optional: For background updates -->
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>We use your location to track your movements for event coordination.</string>
+
+    <!-- Optional: For precise location (iOS 14+) -->
+    <key>NSLocationTemporaryUsageDescriptionDictionary</key>
+    <dict>
+        <key>LocationTracking</key>
+        <string>To display your real-time location accurately.</string>
+    </dict>
+
+    <!-- Optional: If you're using URL schemes (not needed for location) -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.example.labtechnician</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>labtechnician</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- Added for Face ID usage -->
+    <key>NSFaceIDUsageDescription</key>
+    <string>Face ID is used to securely log in to the app.</string>
+</dict>
+</plist>

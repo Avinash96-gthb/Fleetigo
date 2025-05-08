@@ -15,6 +15,7 @@
 		E1E0A24F2DB25563002D10DE /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A24E2DB25563002D10DE /* Supabase */; };
 		E1E0A26E2DB82246002D10DE /* SVGKit in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A26D2DB82246002D10DE /* SVGKit */; };
 		E1E0A2702DB82246002D10DE /* SVGKitSwift in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A26F2DB82246002D10DE /* SVGKitSwift */; };
+		E1E0A2992DBE52A5002D10DE /* AnyCodable in Frameworks */ = {isa = PBXBuildFile; productRef = E1E0A2982DBE52A5002D10DE /* AnyCodable */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -40,9 +41,22 @@
 		E1E0A2302DB25482002D10DE /* FleetigoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FleetigoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E1E0A4B32DCB61F6002D10DE /* Exceptions for "Fleetigo" folder in "Fleetigo" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E1E0A2152DB2547F002D10DE /* Fleetigo */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E1E0A2182DB2547F002D10DE /* Fleetigo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E1E0A4B32DCB61F6002D10DE /* Exceptions for "Fleetigo" folder in "Fleetigo" target */,
+			);
 			path = Fleetigo;
 			sourceTree = "<group>";
 		};
@@ -54,6 +68,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E1E0A2702DB82246002D10DE /* SVGKitSwift in Frameworks */,
+				E1E0A2992DBE52A5002D10DE /* AnyCodable in Frameworks */,
 				E1E0A2492DB25563002D10DE /* PostgREST in Frameworks */,
 				E1E0A26E2DB82246002D10DE /* SVGKit in Frameworks */,
 				E1E0A2472DB25563002D10DE /* Functions in Frameworks */,
@@ -127,6 +142,7 @@
 				E1E0A24E2DB25563002D10DE /* Supabase */,
 				E1E0A26D2DB82246002D10DE /* SVGKit */,
 				E1E0A26F2DB82246002D10DE /* SVGKitSwift */,
+				E1E0A2982DBE52A5002D10DE /* AnyCodable */,
 			);
 			productName = Fleetigo;
 			productReference = E1E0A2162DB2547F002D10DE /* Fleetigo.app */;
@@ -207,6 +223,7 @@
 			packageReferences = (
 				E1E0A2432DB25563002D10DE /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				E1E0A26C2DB82246002D10DE /* XCRemoteSwiftPackageReference "SVGKit" */,
+				E1E0A2972DBE52A5002D10DE /* XCRemoteSwiftPackageReference "AnyCodable" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E1E0A2172DB2547F002D10DE /* Products */;
@@ -412,11 +429,13 @@
 				DEVELOPMENT_TEAM = G7G9Q58G56;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Fleetigo/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -441,11 +460,13 @@
 				DEVELOPMENT_TEAM = G7G9Q58G56;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Fleetigo/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -589,6 +610,14 @@
 				minimumVersion = 3.0.0;
 			};
 		};
+		E1E0A2972DBE52A5002D10DE /* XCRemoteSwiftPackageReference "AnyCodable" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Flight-School/AnyCodable.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.6.7;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -631,6 +660,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E1E0A26C2DB82246002D10DE /* XCRemoteSwiftPackageReference "SVGKit" */;
 			productName = SVGKitSwift;
+		};
+		E1E0A2982DBE52A5002D10DE /* AnyCodable */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1E0A2972DBE52A5002D10DE /* XCRemoteSwiftPackageReference "AnyCodable" */;
+			productName = AnyCodable;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
