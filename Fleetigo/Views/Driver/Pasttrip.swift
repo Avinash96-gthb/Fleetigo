@@ -1,4 +1,3 @@
-
 import SwiftUI
 import MapKit
 
@@ -9,6 +8,7 @@ struct PastTripData: Identifiable {
     let consignmentType: ConsignmentType
     let date: Date
     
+    
     enum ConsignmentType: String {
         case priority = "Priority"
         case medium = "Medium"
@@ -16,230 +16,336 @@ struct PastTripData: Identifiable {
     }
 }
 
+
+
 struct PastTripsView: View {
-    // Sample data - in a real app, this would come from a database or API
-    @State private var pastTrips: [PastTripData] = [
-        PastTripData(consignmentID: "CID-100234", consignmentType: .priority, date: Date()),
-        PastTripData(consignmentID: "CID-100234", consignmentType: .medium, date: Date().addingTimeInterval(-86400)),
-        PastTripData(consignmentID: "CID-100234", consignmentType: .standard, date: Date().addingTimeInterval(-172800)),
-        PastTripData(consignmentID: "CID-100234", consignmentType: .priority, date: Date().addingTimeInterval(-259200)),
-        PastTripData(consignmentID: "CID-100234", consignmentType: .priority, date: Date().addingTimeInterval(-345600))
-    ]
-    
+    let driverId: UUID? // Passed from TripCardView's TabView item
+    @StateObject private var viewModel = PastTripsViewModel()
+
     var body: some View {
         NavigationStack {
             ZStack {
                 LinearGradient(
-                    gradient: Gradient(stops: [
-                        .init(color: Color(hex: "#B1CEFF"), location: 0.0),
-                        .init(color: Color.white, location: 0.20)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea(edges: .top) // Limit to top only
+                                    gradient: Gradient(stops: [
+                                        .init(color: Color(hex: "#B1CEFF"), location: 0.0),
+                                        .init(color: Color.white, location: 0.20)
+                                    ]),
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                    .ignoresSafeArea(edges: .top)
                 
                 VStack(alignment: .leading) {
                     Text("Past Trips")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .padding(.horizontal)
-                        .padding(.top)
+                        .font(.largeTitle.bold())
+                        .padding([.horizontal, .top])
+                        .padding(.bottom, 8) // Add some space below title
                     
-                    if pastTrips.isEmpty {
-                        VStack {
-                            Spacer()
-                            Text("No past trips available.")
-                                .foregroundColor(.gray)
-                            Spacer()
-                        }
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 10) {
-                                ForEach(pastTrips) { trip in
-                                    PastTripCardView(trip: trip)
-                                }
-                                
-                                // Add some extra space at the bottom
-                                Spacer().frame(height: 20)
+                    if viewModel.isLoading {
+                        Spacer()
+                        ProgressView("Loading Past Trips...")
+                        Spacer()
+                    } else if let errorMessage = viewModel.errorMessage {
+                        Spacer()
+                        VStack(spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.largeTitle)
+                                .foregroundColor(.orange)
+                            Text(errorMessage)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Retry") {
+                                Task { await viewModel.fetchPastTripsForDriver(driverId: driverId) }
                             }
-                            .padding(.horizontal)
+                            .buttonStyle(.borderedProminent)
+                        }
+                        .padding()
+                        Spacer()
+                    } else if viewModel.pastTripItems.isEmpty {
+                        Spacer()
+                        VStack(spacing: 10) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 50))
+                                .foregroundColor(.gray.opacity(0.7))
+                            Text("No past trips available.")
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        Spacer()
+                    } else {
+                        List { // Use List for better performance and standard row appearance
+                            ForEach(viewModel.pastTripItems) { tripItem in
+                                PastTripCardView(tripItem: tripItem) // Pass PastTripDisplayItem
+                                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0)) // Adjust insets
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                            }
+                        }
+                        .listStyle(.plain) // Remove default List styling
+                        .refreshable { // Add pull-to-refresh
+                            await viewModel.fetchPastTripsForDriver(driverId: driverId)
                         }
                     }
                 }
             }
-            .navigationBarHidden(true)
+            .navigationBarHidden(true) // Keep if you have custom header
+            // Or use .navigationTitle("Past Trips") if header text is removed
+            .onAppear {
+                // Fetch only if list is empty and not already loading
+                if viewModel.pastTripItems.isEmpty && !viewModel.isLoading {
+                    Task {
+                        await viewModel.fetchPastTripsForDriver(driverId: driverId)
+                    }
+                }
+            }
         }
     }
 }
 
 struct PastTripCardView: View {
-    let trip: PastTripData
-    
+    let tripItem: PastTripDisplayItem // Changed from PastTripData
+
     var body: some View {
-        NavigationLink(destination: PastTripDetailView(trip: trip)) {
-            HStack {
-                // Icon based on consignment type
-                getPriorityIcon(for: trip.consignmentType)
-                    .frame(width: 40)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(trip.consignmentID)
+        // NavigationLink now to PastTripDetailView, passing the original Trip and potentially Consignment
+        NavigationLink(destination: PastTripDetailView(trip: tripItem.originalTrip)) { // Pass original trip
+            HStack(spacing: 12) { // Added spacing
+                getPriorityIcon(for: tripItem.consignmentType) // Use new enum
+                    .font(.title2) // Apply font here for consistency
+                    .frame(width: 30, alignment: .center) // Smaller frame for icon
+
+                VStack(alignment: .leading, spacing: 5) { // Adjusted spacing
+                    Text("Consignment: \(tripItem.consignmentDisplayId)")
                         .font(.headline)
-                        .foregroundColor(.black)
+                        .foregroundColor(Color(UIColor.label)) // Adapts to light/dark
+                        .lineLimit(1)
+
+                    HStack {
+                        Text("To:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Text(tripItem.dropLocation)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(Color(UIColor.secondaryLabel))
+                            .lineLimit(1)
+                    }
                     
                     HStack {
-                        Text("Consignment Type")
-                            .font(.subheadline)
+                        Text(tripItem.endTime?.formatted(date: .abbreviated, time: .shortened) ?? "Date N/A")
+                            .font(.caption)
                             .foregroundColor(.gray)
-                        Text(":")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        Text(trip.consignmentType.rawValue)
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+                        Spacer()
+                        Text(tripItem.status.capitalized)
+                            .font(.caption.bold())
+                            .foregroundColor(statusColor(for: tripItem.status))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(statusColor(for: tripItem.status).opacity(0.15))
+                            .clipShape(Capsule())
                     }
                 }
-                .padding(.vertical, 8)
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.gray)
+                    .foregroundColor(.gray.opacity(0.7))
             }
             .padding()
-            .background(Color.white)
+            .background(Color(UIColor.secondarySystemGroupedBackground)) // Adapts to light/dark
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.25), radius: 2, x: 0, y: 1)
+            .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 1) // Softer shadow
         }
     }
     
+    // Use the ConsignmentType from your main data model
     @ViewBuilder
-    private func getPriorityIcon(for type: PastTripData.ConsignmentType) -> some View {
+    private func getPriorityIcon(for type: ConsignmentType) -> some View {
         switch type {
         case .priority:
-            Image(systemName: "chevron.up")
-                .font(.title2)
-                .foregroundColor(.red)
+            Image(systemName: "bolt.fill").foregroundColor(.orange) // Changed icon
         case .medium:
-            Image(systemName: "equal")
-                .font(.title2)
-                .foregroundColor(.orange)
+            Image(systemName: "arrow.up.arrow.down.circle.fill").foregroundColor(.blue) // Changed icon
         case .standard:
-            Image(systemName: "chevron.down")
-                .font(.title2)
-                .foregroundColor(.blue)
+            Image(systemName: "circle.fill").foregroundColor(.gray) // Changed icon
+        }
+    }
+
+    private func statusColor(for status: String) -> Color {
+        switch status.lowercased() {
+        case "completed": return .green
+        case "cancelled": return .red
+        case "ended_manually": return .orange
+        default: return .gray
         }
     }
 }
 
-// Trip details view for past trips
+
+
 struct PastTripDetailView: View {
-    let trip: PastTripData
-    
-    // Sample coordinates (would be stored with the actual trip data)
-    let startCoordinate = CLLocationCoordinate2D(latitude: 28.7041, longitude: 77.1025) // Delhi
-    let endCoordinate = CLLocationCoordinate2D(latitude: 13.0827, longitude: 80.2707) // Chennai
-    
+    let trip: Trip // Now receives the full Trip object
+
+    // State for fetched related data
+    @State private var consignment: Consignment?
+    @State private var vehicle: Vehicle?
+    @State private var isLoadingDetails: Bool = true
+    @State private var errorMessage: String?
+
+    // Map related state
+    @State private var pickupGeoCoordinate: CLLocationCoordinate2D?
+    @State private var dropGeoCoordinate: CLLocationCoordinate2D?
+    @State private var optimalRouteToDisplay: MKRoute?
+    @StateObject private var routeCalculator = RouteCalculator2() // Assuming RouteCalculator is defined
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                // Map view similar to active trip
-                MapView(startCoordinate: startCoordinate, endCoordinate: endCoordinate)
-                    .frame(height: 220)
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .shadow(color: Color.black.opacity(0.15), radius: 5, x: 0, y: 2)
-                
-                // Trip info section
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Consignment ID:")
-                            .fontWeight(.medium)
-                        Text(trip.consignmentID)
-                    }
+            if isLoadingDetails {
+                ProgressView("Loading Trip Details...")
+                    .padding(.top, 50)
+            } else if let errorMessage = errorMessage {
+                Text("Error: \(errorMessage)")
+                    .foregroundColor(.red)
+                    .padding()
+            } else if let cons = consignment, let veh = vehicle {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Map Section (uses pickup/drop from Trip object)
+                    mapSection
                     
-                    HStack {
-                        Text("Type:")
-                            .fontWeight(.medium)
-                        Text(trip.consignmentType.rawValue)
-                    }
-                    
-                    HStack {
-                        Text("Date:")
-                            .fontWeight(.medium)
-                        Text(formattedDate(trip.date))
-                    }
-                    
-                    // Add more trip details as needed
-                    
-                    Divider()
-                        .padding(.vertical, 8)
-                    
-                    Text("Location Details")
-                        .font(.headline)
-                        .padding(.bottom, 8)
-                    
-                    HStack(alignment: .top, spacing: 12) {
-                        VStack {
-                            Circle()
-                                .fill(Color.green)
-                                .frame(width: 12, height: 12)
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 1, height: 30)
+                    // Consignment Info Section
+                    DetailSection(title: "Consignment: \(cons.id)") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            DetailRow(label: "Status", value: cons.status.rawValue.capitalized)
+                            DetailRow(label: "Type", value: cons.type.rawValue.capitalized)
+                            DetailRow(label: "Description", value: cons.description)
+                            DetailRow(label: "Weight", value: "\(cons.weight) kg")
                         }
-                        Text("Rohini, Delhi")
-                            .font(.subheadline)
-                            .multilineTextAlignment(.leading)
-                        Spacer()
                     }
                     
-                    HStack(alignment: .top, spacing: 12) {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 12, height: 12)
-                        Text("Raja Muthai Salai, Chennai")
-                            .font(.subheadline)
-                            .multilineTextAlignment(.leading)
-                        Spacer()
+                    // Trip Info Section
+                    DetailSection(title: "Trip Details") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            DetailRow(label: "Trip Status", value: trip.status.capitalized)
+                            DetailRow(label: "Started", value: trip.startTime?.formatted(date: .abbreviated, time: .shortened) ?? "N/A")
+                            DetailRow(label: "Ended", value: trip.endTime?.formatted(date: .abbreviated, time: .shortened) ?? "N/A")
+                            DetailRow(label: "Pickup", value: trip.pickupLocation)
+                            DetailRow(label: "Drop-off", value: trip.dropLocation)
+                            DetailRow(label: "Notes", value: trip.notes ?? "None")
+                        }
                     }
+
+                    // Vehicle Info Section
+                    DetailSection(title: "Vehicle Used: \(veh.licensePlateNo)") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            DetailRow(label: "Model", value: veh.model)
+                            DetailRow(label: "Type", value: veh.type)
+                        }
+                    }
+                    // Add more sections as needed (e.g., Revenue, Issues reported during trip)
                 }
                 .padding()
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                .padding(.horizontal)
+            } else {
+                Text("Could not load complete trip details.")
+                    .foregroundColor(.orange)
             }
         }
-        .navigationTitle("Past Trip Details")
+        .navigationTitle("Past Trip: \(consignment?.id ?? String(trip.id?.uuidString.prefix(8) ?? "Details"))")
         .navigationBarTitleDisplayMode(.inline)
-        .background(
-            LinearGradient(
-                gradient: Gradient(stops: [
-                    .init(color: Color(hex: "#B4CFFF").opacity(0.5), location: 0.0),
-                    .init(color: Color(hex: "#B4CFFF").opacity(0.3), location: 0.1),
-                    .init(color: Color(hex: "#B4CFFF").opacity(0.1), location: 0.3),
-                    .init(color: .clear, location: 0.4)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-        )
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .onAppear {
+            Task {
+                await fetchAssociatedDetails()
+            }
+        }
+    }
+
+    private func fetchAssociatedDetails() async {
+        isLoadingDetails = true
+        errorMessage = nil
+        do {
+            async let consFetch = SupabaseManager.shared.fetchConsignment(byID: trip.consignmentId)
+            async let vehFetch = SupabaseManager.shared.fetchVehicle(byID: trip.vehicleId)
+
+            self.consignment = try await consFetch
+            self.vehicle = try await vehFetch
+            
+            print("PastTripDetailView: Fetched Consignment: \(self.consignment != nil), Vehicle: \(self.vehicle != nil)")
+
+            // After fetching consignment, geocode its locations for the map
+            if let cons = self.consignment {
+                await geocodeAddressesAndCalcRoute(pickupAddr: cons.pickup_location, dropAddr: cons.drop_location)
+            } else {
+                 print("PastTripDetailView: Consignment details missing, cannot geocode or calculate route.")
+            }
+
+        } catch {
+            print("PastTripDetailView: Error fetching associated details: \(error)")
+            self.errorMessage = error.localizedDescription
+        }
+        isLoadingDetails = false
+    }
+
+    private func geocodeAddressesAndCalcRoute(pickupAddr: String, dropAddr: String) async {
+        // Geocode
+        self.pickupGeoCoordinate = await performGeocoding(for: pickupAddr)
+        self.dropGeoCoordinate = await performGeocoding(for: dropAddr)
+
+        // Calculate route if coordinates are available
+        if let pCoord = self.pickupGeoCoordinate, let dCoord = self.dropGeoCoordinate {
+            routeCalculator.calculateRoute(from: pCoord, to: dCoord) { route in
+                DispatchQueue.main.async { self.optimalRouteToDisplay = route }
+            }
+        }
+    }
+
+    private func performGeocoding(for addressString: String) async -> CLLocationCoordinate2D? {
+        await withCheckedContinuation { continuation in
+            routeCalculator.geocodeAddressString(addressString) { coordinate in
+                continuation.resume(returning: coordinate)
+            }
+        }
+    }
+
+    // Map Section
+    @ViewBuilder
+    private var mapSection: some View {
+        DetailSection(title: "Trip Route") {
+            Group { // Use Group for conditional content
+                if isLoadingDetails && optimalRouteToDisplay == nil && pickupGeoCoordinate == nil {
+                    ProgressView("Loading map...")
+                        .frame(height: 250, alignment: .center)
+                } else if let pCoord = pickupGeoCoordinate, let dCoord = dropGeoCoordinate {
+                    // Using a simplified map here, can replace with LiveTrackingMapView if needed
+                    // For past trips, live driver location isn't relevant.
+                    Map {
+                        Marker("Pickup: \(trip.pickupLocation)", coordinate: pCoord).tint(.green)
+                        Marker("Drop-off: \(trip.dropLocation)", coordinate: dCoord).tint(.red)
+                        if let route = optimalRouteToDisplay {
+                            MapPolyline(route.polyline).stroke(Color.blue, lineWidth: 5)
+                        }
+                    }
+                    .frame(height: 250)
+                    .cornerRadius(10)
+                    .onAppear { // Set camera for the map
+                        let mapRect = MKMapRect.boundingMapRect(for: [pCoord, dCoord])
+                        // How to set MapCameraPosition for this simpler Map?
+                        // This basic Map doesn't directly take MapCameraPosition binding like Map(position: $...).
+                        // For more control, you'd use the more complex Map from LiveTrackingMapView or TripMapView
+                        // For now, it will auto-fit.
+                    }
+                } else {
+                    Text("Map data unavailable (locations could not be geocoded).")
+                        .foregroundColor(.orange)
+                        .padding()
+                        .frame(height: 250, alignment: .center)
+                }
+            }
+        }
     }
     
-    private func formattedDate(_ date: Date) -> String {
+    private func formattedDate(_ date: Date?) -> String {
+        guard let date = date else { return "N/A" }
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
-    }
-}
-
-struct PastTripsView_Previews: PreviewProvider {
-    static var previews: some View {
-        PastTripsView()
     }
 }

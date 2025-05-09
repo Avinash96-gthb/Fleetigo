@@ -53,7 +53,7 @@ struct PreTripChecklistView: View {
                 // Background gradient
                 LinearGradient(
                     gradient: Gradient(stops: [
-                        .init(color: Color(hex: "#B5FFDF"), location: 0.0),
+                        .init(color: Color(hex: "#4E8FFF"), location: 0.0),
                         .init(color: Color.white, location: 0.20)
                     ]),
                     startPoint: .top,
@@ -103,8 +103,8 @@ struct PreTripChecklistView: View {
                                 .padding()
                                 .background(
                                     allChecked
-                                        ? Color(hex: "#25A36B")
-                                        : Color(hex: "#25A36B").opacity(0.5)
+                                        ? Color(hex: "#4E8FFF")
+                                        : Color(hex: "#4E8FFF").opacity(0.5)
                                 )
                                 .cornerRadius(12)
                         }
@@ -133,7 +133,7 @@ struct PreTripChecklistView: View {
                         showReportIssue = true
                     }
                     .disabled(uncheckedTitles.isEmpty)
-                    .foregroundColor(Color(hex: "#25A36B"))
+                    .foregroundColor(Color(hex: "#4E8FFF"))
                 }
             }
         }
@@ -159,7 +159,7 @@ struct PreTripChecklistView: View {
                                 : "circle"
                         )
                         .font(.system(size: 22))
-                        .foregroundColor(Color(hex: "#25A36B"))
+                        .foregroundColor(Color(hex: "#4E8FFF"))
                     }
                     .buttonStyle(PlainButtonStyle())
                     

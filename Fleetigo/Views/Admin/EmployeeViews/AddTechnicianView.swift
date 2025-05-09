@@ -33,34 +33,60 @@ struct AddTechnicianView: View {
     var body: some View {
         NavigationStack {
             ZStack { // Use ZStack for overlaying the loading indicator
-                Form {
-                    Section(header: Text("Technician Details")) {
-                        TextField("Name", text: $name)
-                            .accessibilityLabel("Technician name")
-
-                        TextField("Email ID", text: $email)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .accessibilityLabel("Technician email")
-
-                        TextField("Contact Number", text: $contactNumber) // Removed placeholder format
-                            .keyboardType(.phonePad)
-                            .accessibilityLabel("Technician contact number")
-
-                        TextField("Experience (Years as number)", text: $experience) // Clarified input
-                            .keyboardType(.numberPad) // Use number pad for experience
-                            .accessibilityLabel("Technician experience")
-
-                        TextField("Specialty (e.g., Electrical)", text: $specialty)
-                            .accessibilityLabel("Technician specialty")
-
-                        TextField("Rating (e.g., 4.5)", text: $ratingString)
-                           .keyboardType(.decimalPad)
-                           .accessibilityLabel("Technician rating")
-
-                        SecureField("Password (minimum 6 characters)", text: $password)
+                ScrollView {
+                    VStack(spacing: 24) {
+                        Text("Technician Details")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 16) {
+                            InputField(title: "Name", text: $name, placeholder: "Enter technician name", keyboardType: .default)
+                                .accessibilityLabel("Technician name")
+                            
+                            InputField(title: "Email ID", text: $email, placeholder: "Enter email address", keyboardType: .emailAddress)
+                                .autocapitalization(.none)
+                                .accessibilityLabel("Technician email")
+                            
+                            InputField(title: "Contact Number", text: $contactNumber, placeholder: "Enter phone number", keyboardType: .phonePad)
+                                .accessibilityLabel("Technician contact number")
+                            
+                            InputField(title: "Experience", text: $experience, placeholder: "Years as number", keyboardType: .numberPad)
+                                .accessibilityLabel("Technician experience")
+                            
+                            InputField(title: "Specialty", text: $specialty, placeholder: "e.g., Electrical", keyboardType: .default)
+                                .accessibilityLabel("Technician specialty")
+                            
+                            InputField(title: "Rating", text: $ratingString, placeholder: "e.g., 4.5", keyboardType: .decimalPad)
+                                .accessibilityLabel("Technician rating")
+                            
+                            SecureInputField(title: "Password", text: $password, placeholder: "Minimum 6 characters")
                                 .accessibilityLabel("Technician password")
+                        }
+                        .padding(.horizontal)
+                        
+                        Spacer()
+                        
+                        Button {
+                            Task { await saveTechnician() }
+                        } label: {
+                            Text("Save Technician")
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(name.isEmpty || email.isEmpty || password.isEmpty || contactNumber.isEmpty || isLoading ? Color.blue.opacity(0.3) : Color.blue)
+                                )
+                                .foregroundColor(.white)
+                        }
+                        .disabled(name.isEmpty || email.isEmpty || password.isEmpty || contactNumber.isEmpty || isLoading)
+                        .accessibilityLabel("Save technician")
+                        .padding(.horizontal)
+                        .padding(.bottom, 16)
                     }
+                    .padding(.top, 16)
                 }
                 .navigationTitle("Add Technician")
                 .toolbar {
@@ -68,29 +94,28 @@ struct AddTechnicianView: View {
                         Button("Cancel") {
                             dismiss()
                         }
-                        .foregroundColor(.blue) // Consider theme color
+                        .foregroundColor(.blue)
                         .accessibilityLabel("Cancel adding technician")
                     }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Save") {
-                            Task {
-                                await saveTechnician()
-                            }
-                        }
-                        .foregroundColor(.blue) // Consider theme color
-                        // Disable save button if required fields are empty or loading
-                        .disabled(name.isEmpty || email.isEmpty || password.isEmpty || contactNumber.isEmpty || isLoading) // Added contactNumber check
-                        .accessibilityLabel("Save technician")
-                    }
                 }
+                
                 // Overlay loading indicator
                 if isLoading {
                     Color.black.opacity(0.3).edgesIgnoringSafeArea(.all)
-                    ProgressView("Adding Technician...")
-                        .padding()
-                        .background(.regularMaterial) // Use material background
-                        .cornerRadius(10)
-                        .shadow(radius: 5)
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        
+                        Text("Adding Technician...")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                    }
+                    .frame(width: 180, height: 180)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.regularMaterial)
+                    )
+                    .shadow(radius: 15)
                 }
             }
         }
@@ -187,6 +212,80 @@ struct AddTechnicianView: View {
     }
 }
 
+// Supporting custom input field components
+struct InputField: View {
+    var title: String
+    @Binding var text: String
+    var placeholder: String
+    var keyboardType: UIKeyboardType
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+            
+            TextField(placeholder, text: $text)
+                .keyboardType(keyboardType)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(text.isEmpty ? Color.clear : Color.blue, lineWidth: 1)
+                )
+        }
+    }
+}
+
+struct SecureInputField: View {
+    var title: String
+    @Binding var text: String
+    var placeholder: String
+    
+    @State private var showPassword: Bool = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+            
+            HStack {
+                if showPassword {
+                    TextField(placeholder, text: $text)
+                } else {
+                    SecureField(placeholder, text: $text)
+                }
+                
+                Button(action: {
+                    showPassword.toggle()
+                }) {
+                    Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemGray6))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(text.isEmpty ? Color.clear : Color.blue, lineWidth: 1)
+            )
+        }
+    }
+}
+
+// MARK: - AddDriverView
+
+// AddDriverView.swift
+
 // MARK: - AddDriverView
 
 // AddDriverView.swift
@@ -204,6 +303,15 @@ struct AddDriverView: View {
     @State private var password: String = ""
     @State private var aadharNumber: String = "" // Added for Supabase function
 
+    // Validation states
+    @State private var nameError: String? = nil
+    @State private var emailError: String? = nil
+    @State private var contactError: String? = nil
+    @State private var licenseError: String? = nil
+    @State private var experienceError: String? = nil
+    @State private var passwordError: String? = nil
+    @State private var aadharError: String? = nil
+
     // State for loading and alert
     @State private var isLoading = false
     @State private var showingAlert = false
@@ -214,60 +322,97 @@ struct AddDriverView: View {
     var body: some View {
         NavigationStack {
             ZStack { // Use ZStack for overlaying the loading indicator
-                Form {
-                    Section(header: Text("Driver Details")) {
-                        TextField("Name", text: $name)
-                            .accessibilityLabel("Driver name")
-
-                        TextField("Email ID", text: $email)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .accessibilityLabel("Driver email")
-
-                        TextField("Contact Number", text: $contactNumber)
-                            .keyboardType(.phonePad)
-                            .accessibilityLabel("Driver contact number")
-
-                        TextField("License Number", text: $licenseNumber) // Removed placeholder
-                            .accessibilityLabel("Driver license number")
-
-                        TextField("Aadhaar Number (Optional)", text: $aadharNumber) // Added field
-                           .keyboardType(.numberPad)
-                           .accessibilityLabel("Driver Aadhaar number")
-
-                        TextField("Experience (Years as number)", text: $experience) // Clarified input
-                            .keyboardType(.numberPad)
-                            .accessibilityLabel("Driver experience")
-
-                        SecureField("Password (minimum 6 characters)", text: $password)
+                ScrollView {
+                    VStack(spacing: 24) {
+                        Text("Driver Details")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 16) {
+                            InputFieldWithValidation(title: "Name", text: $name, placeholder: "Enter driver name", keyboardType: .default, error: nameError)
+                                .accessibilityLabel("Driver name")
+                                .onChange(of: name) { _ in validateName() }
+                            
+                            InputFieldWithValidation(title: "Email ID", text: $email, placeholder: "Enter email address", keyboardType: .emailAddress, error: emailError)
+                                .autocapitalization(.none)
+                                .accessibilityLabel("Driver email")
+                                .onChange(of: email) { _ in validateEmail() }
+                            
+                            InputFieldWithValidation(title: "Contact Number", text: $contactNumber, placeholder: "Enter phone number", keyboardType: .phonePad, error: contactError)
+                                .accessibilityLabel("Driver contact number")
+                                .onChange(of: contactNumber) { _ in validateContactNumber() }
+                            
+                            InputFieldWithValidation(title: "License Number", text: $licenseNumber, placeholder: "Enter license number", keyboardType: .default, error: licenseError)
+                                .accessibilityLabel("Driver license number")
+                                .onChange(of: licenseNumber) { _ in validateLicenseNumber() }
+                            
+                            InputFieldWithValidation(title: "Aadhaar Number", text: $aadharNumber, placeholder: "Optional", keyboardType: .numberPad, error: aadharError)
+                                .accessibilityLabel("Driver Aadhaar number")
+                                .onChange(of: aadharNumber) { _ in validateAadharNumber() }
+                            
+                            InputFieldWithValidation(title: "Experience", text: $experience, placeholder: "Years as number", keyboardType: .numberPad, error: experienceError)
+                                .accessibilityLabel("Driver experience")
+                                .onChange(of: experience) { _ in validateExperience() }
+                            
+                            SecureInputFieldWithValidation(title: "Password", text: $password, placeholder: "Minimum 6 characters", error: passwordError)
                                 .accessibilityLabel("Driver password")
+                                .onChange(of: password) { _ in validatePassword() }
+                        }
+                        .padding(.horizontal)
+                        
+                        Spacer()
+                        
+                        Button {
+                            validateAllFields()
+                            if formIsValid() {
+                                Task { await saveDriver() }
+                            }
+                        } label: {
+                            Text("Save Driver")
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(formIsValid() && !isLoading ? Color.blue : Color.blue.opacity(0.3))
+                                )
+                                .foregroundColor(.white)
+                        }
+                        .disabled(!formIsValid() || isLoading)
+                        .accessibilityLabel("Save driver")
+                        .padding(.horizontal)
+                        .padding(.bottom, 16)
                     }
+                    .padding(.top, 16)
                 }
                 .navigationTitle("Add Driver")
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("Cancel") { dismiss() }
-                        .foregroundColor(.blue) // Consider theme color
+                        .foregroundColor(.blue)
                         .accessibilityLabel("Cancel adding driver")
                     }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Save") {
-                            Task { await saveDriver() }
-                        }
-                        .foregroundColor(.blue) // Consider theme color
-                        // Disable save button if required fields are empty or loading
-                        .disabled(name.isEmpty || email.isEmpty || password.isEmpty || licenseNumber.isEmpty || contactNumber.isEmpty || isLoading) // Added contactNumber check
-                        .accessibilityLabel("Save driver")
-                    }
                 }
+                
                 // Overlay loading indicator
                 if isLoading {
                     Color.black.opacity(0.3).edgesIgnoringSafeArea(.all)
-                    ProgressView("Adding Driver...")
-                        .padding()
-                        .background(.regularMaterial)
-                        .cornerRadius(10)
-                        .shadow(radius: 5)
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        
+                        Text("Adding Driver...")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                    }
+                    .frame(width: 180, height: 180)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.regularMaterial)
+                    )
+                    .shadow(radius: 15)
                 }
             }
         }
@@ -282,35 +427,128 @@ struct AddDriverView: View {
             Text(alertMessage)
         }
     }
+    
+    // Validation methods
+    private func validateName() {
+        if name.isEmpty {
+            nameError = "Name is required"
+        } else if name.count < 3 {
+            nameError = "Name must be at least 3 characters"
+        } else {
+            nameError = nil
+        }
+    }
+    
+    private func validateEmail() {
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
+        
+        if email.isEmpty {
+            emailError = "Email is required"
+        } else if !emailPredicate.evaluate(with: email) {
+            emailError = "Please enter a valid email"
+        } else {
+            emailError = nil
+        }
+    }
+    
+    private func validateContactNumber() {
+        let phoneRegex = "^[0-9]{10}$"
+        let phonePredicate = NSPredicate(format: "SELF MATCHES %@", phoneRegex)
+        
+        if contactNumber.isEmpty {
+            contactError = "Contact number is required"
+        } else if !phonePredicate.evaluate(with: contactNumber) {
+            contactError = "Please enter a valid 10-digit number"
+        } else {
+            contactError = nil
+        }
+    }
+    
+    private func validateLicenseNumber() {
+        if licenseNumber.isEmpty {
+            licenseError = "License number is required"
+        } else if licenseNumber.count < 5 {
+            licenseError = "Enter a valid license number"
+        } else {
+            licenseError = nil
+        }
+    }
+    
+    private func validateAadharNumber() {
+        if !aadharNumber.isEmpty {
+            let aadharRegex = "^[0-9]{12}$"
+            let aadharPredicate = NSPredicate(format: "SELF MATCHES %@", aadharRegex)
+            
+            if !aadharPredicate.evaluate(with: aadharNumber) {
+                aadharError = "Aadhaar must be 12 digits"
+            } else {
+                aadharError = nil
+            }
+        } else {
+            aadharError = nil // Optional field
+        }
+    }
+    
+    private func validateExperience() {
+        if !experience.isEmpty {
+            if let expValue = Int(experience) {
+                if expValue < 0 || expValue > 50 {
+                    experienceError = "Enter a value between 0-50"
+                } else {
+                    experienceError = nil
+                }
+            } else {
+                experienceError = "Please enter a valid number"
+            }
+        } else {
+            experienceError = nil // Optional field
+        }
+    }
+    
+    private func validatePassword() {
+        if password.isEmpty {
+            passwordError = "Password is required"
+        } else if password.count < 6 {
+            passwordError = "Must be at least 6 characters"
+        } else if !password.contains(where: { $0.isLowercase }) ||
+                  !password.contains(where: { $0.isUppercase }) ||
+                  !password.contains(where: { $0.isNumber }) {
+            passwordError = "Include uppercase, lowercase and number"
+        } else {
+            passwordError = nil
+        }
+    }
+    
+    private func validateAllFields() {
+        validateName()
+        validateEmail()
+        validateContactNumber()
+        validateLicenseNumber()
+        validateAadharNumber()
+        validateExperience()
+        validatePassword()
+    }
+    
+    private func formIsValid() -> Bool {
+        return nameError == nil &&
+               emailError == nil &&
+               contactError == nil &&
+               licenseError == nil &&
+               passwordError == nil &&
+               aadharError == nil &&
+               experienceError == nil &&
+               !name.isEmpty &&
+               !email.isEmpty &&
+               !contactNumber.isEmpty &&
+               !licenseNumber.isEmpty &&
+               !password.isEmpty
+    }
 
     // Async function to handle the save logic
     private func saveDriver() async {
         isLoading = true
         isSuccess = false
-
-        // --- Validation ---
-        guard !name.isEmpty, !email.isEmpty, !password.isEmpty, !licenseNumber.isEmpty, !contactNumber.isEmpty else {
-            alertTitle = "Missing Information"
-            alertMessage = "Name, Email, Password, License Number, and Contact Number are required."
-            isLoading = false
-            showingAlert = true
-            return
-        }
-        guard email.contains("@") else {
-            alertTitle = "Invalid Email"
-            alertMessage = "Please enter a valid email address."
-            isLoading = false
-            showingAlert = true
-            return
-        }
-        guard password.count >= 6 else {
-             alertTitle = "Password Too Short"
-             alertMessage = "Password must be at least 6 characters long."
-             isLoading = false
-             showingAlert = true
-             return
-        }
-        // Optional: Add validation for license number format, Aadhaar format, experience number
 
         // --- API Call ---
         do {
@@ -348,3 +586,160 @@ struct AddDriverView: View {
         }
     }
 }
+
+// Supporting custom input field components with validation
+struct InputFieldWithValidation: View {
+    var title: String
+    @Binding var text: String
+    var placeholder: String
+    var keyboardType: UIKeyboardType
+    var error: String?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+            
+            TextField(placeholder, text: $text)
+                .keyboardType(keyboardType)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(error != nil ? Color.red : (text.isEmpty ? Color.clear : Color.blue), lineWidth: 1)
+                )
+            
+            if let errorText = error {
+                Text(errorText)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.leading, 4)
+                    .transition(.opacity)
+            }
+        }
+    }
+}
+
+struct SecureInputFieldWithValidation: View {
+    var title: String
+    @Binding var text: String
+    var placeholder: String
+    var error: String?
+    
+    @State private var showPassword: Bool = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+            
+            HStack {
+                if showPassword {
+                    TextField(placeholder, text: $text)
+                } else {
+                    SecureField(placeholder, text: $text)
+                }
+                
+                Button(action: {
+                    showPassword.toggle()
+                }) {
+                    Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemGray6))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(error != nil ? Color.red : (text.isEmpty ? Color.clear : Color.blue), lineWidth: 1)
+            )
+            
+            if let errorText = error {
+                Text(errorText)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.leading, 4)
+                    .transition(.opacity)
+            }
+        }
+    }
+}
+//// Supporting custom input field components
+//struct InputField: View {
+//    var title: String
+//    @Binding var text: String
+//    var placeholder: String
+//    var keyboardType: UIKeyboardType
+//    
+//    var body: some View {
+//        VStack(alignment: .leading, spacing: 8) {
+//            Text(title)
+//                .font(.subheadline)
+//                .fontWeight(.medium)
+//                .foregroundColor(.secondary)
+//            
+//            TextField(placeholder, text: $text)
+//                .keyboardType(keyboardType)
+//                .padding()
+//                .background(
+//                    RoundedRectangle(cornerRadius: 12)
+//                        .fill(Color(.systemGray6))
+//                )
+//                .overlay(
+//                    RoundedRectangle(cornerRadius: 12)
+//                        .stroke(text.isEmpty ? Color.clear : Color.blue, lineWidth: 1)
+//                )
+//        }
+//    }
+//}
+//
+//struct SecureInputField: View {
+//    var title: String
+//    @Binding var text: String
+//    var placeholder: String
+//    
+//    @State private var showPassword: Bool = false
+//    
+//    var body: some View {
+//        VStack(alignment: .leading, spacing: 8) {
+//            Text(title)
+//                .font(.subheadline)
+//                .fontWeight(.medium)
+//                .foregroundColor(.secondary)
+//            
+//            HStack {
+//                if showPassword {
+//                    TextField(placeholder, text: $text)
+//                } else {
+//                    SecureField(placeholder, text: $text)
+//                }
+//                
+//                Button(action: {
+//                    showPassword.toggle()
+//                }) {
+//                    Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
+//                        .foregroundColor(.secondary)
+//                }
+//            }
+//            .padding()
+//            .background(
+//                RoundedRectangle(cornerRadius: 12)
+//                    .fill(Color(.systemGray6))
+//            )
+//            .overlay(
+//                RoundedRectangle(cornerRadius: 12)
+//                    .stroke(text.isEmpty ? Color.clear : Color.blue, lineWidth: 1)
+//            )
+//        }
+//    }
+//}

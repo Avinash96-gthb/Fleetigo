@@ -28,11 +28,12 @@ struct TripNavigationView: View {
     @State private var showDeviationAlert = false
     @State private var deviationMessage = ""
     @Environment(\.dismiss) var dismiss
+    @State private var appReturnObserverToken: NSObjectProtocol? = nil
 
     // --- Constants ---
     private let deviationThreshold: CLLocationDistance = 500.0
     private let startLocationThreshold: CLLocationDistance = 15000000000000000000000.0
-    private let arrivalThreshold: CLLocationDistance = 10000000000000000000000000000.0
+    private let arrivalThreshold: CLLocationDistance = 100.0
 
     // MARK: - Body
     var body: some View {
@@ -49,13 +50,16 @@ struct TripNavigationView: View {
                 }
 
                 // Hidden Navigation Link (Keep outside the main layout structure if needed)
-                NavigationLink(
-                    destination: PostTripChecklistView(consignmentId: consignmentId, vehichleId: vehicleId, driverId: driverId),
-                    isActive: $navigateToPostChecklist
-                ) { EmptyView() }.hidden()
+//                NavigationLink(
+//                    destination: PostTripChecklistView(consignmentId: consignmentId, vehichleId: vehicleId, driverId: driverId),
+//                    isActive: $navigateToPostChecklist
+//                ) { EmptyView() }.hidden()
             }
             .navigationTitle("Trip Navigation")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $navigateToPostChecklist, destination: {
+                PostTripChecklistView(consignmentId: consignmentId, vehichleId: vehicleId, driverId: driverId)
+            })
             .toolbar { navigationToolbar } // Extracted Toolbar
             .onAppear {
                 print("TripNavigationView appeared. DriverID: \(driverId?.uuidString ?? "NIL"), StartCoord: \(startCoordinate != nil), EndCoord: \(endCoordinate != nil)")
@@ -243,6 +247,56 @@ struct TripNavigationView: View {
         }
     }
     
+    private func finalizeAndEndTrip() {
+            // Ensure this block is executed only once per trip end
+            guard tripStarted || !navigateToPostChecklist else { // If trip not started, or already navigating, do nothing
+                print("TripNavigationView: Finalize trip called, but trip not started or navigation already pending.")
+                return
+            }
+            
+            print("TripNavigationView: Finalizing trip...")
+
+            // UI updates on main thread
+            self.tripStarted = false
+            self.locationTracker.isTripActive = false
+            self.locationTracker.stopTracking()
+            self.navigateToPostChecklist = true // This will trigger navigation
+
+            print("TripNavigationView: Local state updated for trip end, navigating to PostChecklist.")
+
+            // Clean up observer immediately
+            if let token = appReturnObserverToken {
+                NotificationCenter.default.removeObserver(token)
+                appReturnObserverToken = nil
+                print("TripNavigationView: App return observer removed during finalize.")
+            }
+
+            // Database updates in a background Task
+            if let tripID = self.currentTripDBId {
+                Task.detached { // Use .detached if these DB calls are truly independent of view lifecycle now
+                    do {
+                        try await SupabaseManager.shared.updateTripStatus(tripId: tripID, newStatus: "completed")
+                        print("TripNavigationView: Trip \(tripID) status updated to completed in DB.")
+                        
+                        if let drivId = self.driverId {
+                            try? await SupabaseManager.shared.updateDriverStatus(driverId: drivId, newStatus: "Available")
+                        }
+                        if let vehId = self.vehicleId {
+                            try? await SupabaseManager.shared.updateVehicleStatus(vehicleId: vehId, newStatus: .available)
+                        }
+                        if let consId = self.consignmentId {
+                            try? await SupabaseManager.shared.updateConsignmentStatus(consignmentId: consId, newStatus: .completed)
+                        }
+                        print("TripNavigationView: Associated statuses updated for trip \(tripID).")
+                    } catch {
+                        print("TripNavigationView Error: Failed to update trip/associated statuses for \(tripID): \(error)")
+                    }
+                }
+            } else {
+                print("TripNavigationView Warning: Finalizing trip, but currentTripDBId was nil.")
+            }
+        }
+    
     func calculateAndStoreOptimalRoute() async {
         guard let startCoord = startCoordinate, let endCoord = endCoordinate else {
             await MainActor.run { routeExists = false }
@@ -294,21 +348,15 @@ struct TripNavigationView: View {
                     self.locationTracker.isTripActive = false
                     self.locationTracker.stopTracking()
                     self.navigateToPostChecklist = true
+                    print(navigateToPostChecklist)
                 }
 
                 NotificationCenter.default.removeObserver(self, name: UIApplication.didBecomeActiveNotification, object: nil)
 
                 if let tripID = self.currentTripDBId {
                     do {
-                        // Update status to completed (or maybe a different status like 'ended_manually'?)
-                        try await SupabaseManager.shared.updateTripStatus(tripId: tripID, newStatus: "completed") // Or "ended_manually"
-                        print("TripNavigationView: Trip \(tripID) status updated to 'completed' via manual end.")
-                        
-                        // Optionally trigger the revenue calculation and status updates here as well,
-                        // similar to what `TripManager.endCurrentTrip` does.
-                        // This might involve passing necessary info back or having TripManager handle it.
-                        // For now, just updating status. You might need to call a TripManager function.
-                        // Example: await tripManager.finalizeTrip(tripId: tripID, driverId: driverId, vehicleId: vehicleId)
+                                                
+                        finalizeAndEndTrip()
 
                     } catch {
                         print("TripNavigationView Error: Failed to update trip \(tripID) status on manual end: \(error)")
@@ -394,101 +442,48 @@ struct TripNavigationView: View {
     }
     
     private func setupAppReturnObserver() {
-            // Remove previous observer first to prevent duplicates
-            NotificationCenter.default.removeObserver(self, name: UIApplication.didBecomeActiveNotification, object: nil)
+            // Remove any existing observer to prevent duplicates
+            if let existingObserver = appReturnObserverToken {
+                NotificationCenter.default.removeObserver(existingObserver)
+                appReturnObserverToken = nil
+                print("TripNavigationView: Removed existing app return observer.")
+            }
             
             // Add new observer
-            NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
-                // Access self properties directly within the closure (safe for structs here)
-                guard self.tripStarted else { return } // Only act if trip was in progress
-                print("TripNavigationView: App became active during trip.")
-                
-                // Option 1: Immediately check for arrival (might be redundant if onReceive is working)
-                // if let currentLocation = self.locationTracker.currentLocation {
-                //     self.checkIfArrivedAtDestination(currentLocation: currentLocation)
-                // }
-
-                 
-                
-//                // Option 3 (If using this as a HACK to end trip on simulator):
-//                 print("TripNavigationView: Simulating trip end because app returned.")
-//                 Task { await MainActor.run { self.handleEndTripButtonPressed() } }
-                
+            appReturnObserverToken = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [self] _ in // Capture self explicitly
+                // Only log if the trip was considered active *before* this notification
+                if self.tripStarted {
+                    print("TripNavigationView: App became active. Trip was in progress (ID: \(self.currentTripDBId?.uuidString ?? "N/A")).")
+                    // Perform any necessary UI refreshes or checks here if needed.
+                    // For example, re-check location if you suspect updates paused.
+                    // if let currentLocation = self.locationTracker.currentLocation {
+                    //     self.checkIfAtStartLocation(currentLocation: currentLocation) // Re-evaluate start condition if not started
+                    //     self.checkIfArrivedAtDestination(currentLocation: currentLocation) // Re-evaluate end condition
+                    // }
+                } else {
+                    print("TripNavigationView: App became active. Trip was NOT in progress.")
+                }
             }
             print("TripNavigationView: App return observer set up.")
         }
-
+    
+    
     func checkIfArrivedAtDestination(currentLocation: CLLocation) {
-            // Ensure trip is started and we have an end coordinate
             guard let endCoord = endCoordinate, tripStarted else { return }
 
             let destination = CLLocation(latitude: endCoord.latitude, longitude: endCoord.longitude)
             let distanceToDestination = currentLocation.distance(from: destination)
 
-            // Print distance for debugging, but maybe less frequently
-            // print("TripNavigationView: Distance to destination: \(distanceToDestination)m")
-
-            // Check if within arrival threshold
             if distanceToDestination <= arrivalThreshold {
                 print("TripNavigationView: Driver has arrived at destination (within \(arrivalThreshold)m).")
-                
-                // Prevent duplicate execution if already processing arrival
-                guard tripStarted else { return } // Check tripStarted again inside Task block if needed
-
-                // Use a Task to perform async operations (DB update) and UI updates
-                Task {
-                    // Stop tracking and update UI on main thread first
-                    await MainActor.run {
-                        self.tripStarted = false                 // Mark trip as locally ended
-                        self.locationTracker.isTripActive = false // Tell tracker to stop sending locations
-                        self.locationTracker.stopTracking()      // Stop CoreLocation updates
-                        self.navigateToPostChecklist = true      // Trigger navigation
-                        print("TripNavigationView: Stopped tracking and initiated navigation to PostChecklist.")
-                    }
-                    
-                    // Clean up app return observer
-                    NotificationCenter.default.removeObserver(self, name: UIApplication.didBecomeActiveNotification, object: nil)
-
-                    // Update trip status in database
-                    if let tripID = self.currentTripDBId {
-                        do {
-                            try await SupabaseManager.shared.updateTripStatus(tripId: tripID, newStatus: "completed")
-                            print("TripNavigationView: Trip \(tripID) status updated to completed in DB.")
-                            
-                            // **** IMPORTANT: Trigger Full End-of-Trip Logic ****
-                            // This is where you should call the logic that calculates revenue,
-                            // updates driver/vehicle/consignment statuses back to available/completed.
-                            // This likely belongs in TripManager.
-                            if let drivId = self.driverId, let vehId = self.vehicleId {
-                                 print("TripNavigationView: Triggering final trip processing in TripManager.")
-                                 // Assuming TripManager has a function like this:
-                                 // await TripManager.shared.finalizeTrip(tripId: tripID, driverId: drivId, vehicleId: vehId, consignmentId: consignmentId)
-                                 // Or maybe just notify TripManager that the trip ended, and it handles the rest.
-                                 // For now, we only updated the trip status itself. Add calls to TripManager/SupabaseManager as needed.
-                                 
-                                 // Example: Update driver/vehicle status directly (less ideal than TripManager handling it)
-                                  Task { try? await SupabaseManager.shared.updateDriverStatus(driverId: drivId, newStatus: "Available") }
-                                  Task { try? await SupabaseManager.shared.updateVehicleStatus(vehicleId: vehId, newStatus: .available) }
-                                  if let consId = self.consignmentId {
-                                       Task { try? await SupabaseManager.shared.updateConsignmentStatus(consignmentId: consId, newStatus: .completed) } // Assuming ConsignmentStatus enum
-                                  }
-
-
-                            } else {
-                                 print("TripNavigationView Warning: Missing driverId or vehicleId, cannot fully finalize trip statuses.")
-                            }
-                            
-                        } catch {
-                            print("TripNavigationView Error: Failed to update trip \(tripID) status to completed: \(error)")
-                            // TODO: Handle potential failure (e.g., retry logic, offline queue)
-                        }
-                    } else {
-                         print("TripNavigationView Warning: Arrived at destination, but currentTripDBId was nil. Cannot update DB status.")
-                    }
-                }
+                // Call the common finalization logic
+                finalizeAndEndTrip()
             }
         }
-
 
 
 
@@ -498,7 +493,11 @@ struct TripNavigationView: View {
         print("TripNavigationView disappeared.")
         locationTracker.deactivateTripTracking()
         locationTracker.stopTracking()
-        NotificationCenter.default.removeObserver(self, name: UIApplication.didBecomeActiveNotification, object: nil)
+        if let token = appReturnObserverToken {
+                    NotificationCenter.default.removeObserver(token)
+                    appReturnObserverToken = nil
+                    print("TripNavigationView: App return observer removed on disappear.")
+                }
     }
 
     private func handleLocationUpdate(_ newLocation: CLLocation?) {

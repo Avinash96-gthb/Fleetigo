@@ -31,7 +31,7 @@ struct ReportIssueView: View {
             ZStack {
                 LinearGradient(
                     gradient: Gradient(stops: [
-                        .init(color: Color(hex: "#B5FFDF"), location: 0.0),
+                        .init(color: Color(hex: "#4E8FFF"), location: 0.0),
                         .init(color: Color.white, location: 0.20)
                     ]),
                     startPoint: .top,
@@ -232,7 +232,7 @@ struct ReportIssueView: View {
                                 Image(systemName: "plus.circle")
                                     .resizable()
                                     .frame(width: 40, height: 40)
-                                    .foregroundColor(Color(hex: "#25A36B"))
+                                    .foregroundColor(Color(hex: "#4E8FFF"))
                             }
                             .onChange(of: photosPickerItems) { newItems in
                                 Task {
@@ -292,7 +292,7 @@ struct ReportIssueView: View {
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color(hex: "#25A36B"))
+                                .background(Color(hex: "#4E8FFF"))
                                 .cornerRadius(12)
                         }
                         .disabled(selectedItem.isEmpty || descriptionText.isEmpty || issueManager.isSubmitting) // Disable during submission

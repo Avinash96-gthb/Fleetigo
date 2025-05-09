@@ -44,7 +44,7 @@ struct ProfileSectionView: View {
         switch role {
         case .admin:
             return profileViewModel.adminProfile?.full_name ?? "Admin"
-        case .driver: 
+        case .driver:
             return profileViewModel.driverProfile?.name ?? "Driver"
         case .technician:
             return profileViewModel.technicianProfile?.name ?? "Technician"
@@ -297,7 +297,7 @@ struct TripCardView: View {
                 Label("Assigned Trip", systemImage: "truck.box")
             }
 
-            PastTripsView() // Assuming this view exists
+            PastTripsView(driverId: profileViewModel.driverProfile?.id) // Assuming this view exists
                 .tabItem {
                     Label("Past Trips", systemImage: "clock.arrow.circlepath")
                 }

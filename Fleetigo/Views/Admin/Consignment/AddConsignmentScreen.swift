@@ -1,8 +1,6 @@
 import SwiftUI
-// Define VehicleType enum
 
 struct AddConsignmentScreen: View {
-
     @EnvironmentObject var store: ConsignmentStore
     @ObservedObject var vehicleViewModel: VehicleViewModel
     @ObservedObject var dataService: DataService
@@ -13,7 +11,7 @@ struct AddConsignmentScreen: View {
     @State private var weight = ""
     @State private var dimensions = ""
     @State private var selectedType: ConsignmentType? = nil
-    @State private var selectedVehicleType: VehicleType? = nil // New state for vehicle type
+    @State private var selectedVehicleType: VehicleType? = nil
     @State private var pickupLocation = ""
     @State private var dropLocation = ""
     @State private var pickupDate = Date()
@@ -23,16 +21,22 @@ struct AddConsignmentScreen: View {
     @State private var recipientName = ""
     @State private var recipientPhone = ""
     @State private var instructions = ""
-    @State private var selectedVehicle: Vehicle? = nil // Changed to select a specific vehicle
-    @State private var selectedDriver: Employee? = nil // Driver selection
+    @State private var selectedVehicle: Vehicle? = nil
+    @State private var selectedDriver: Employee? = nil
 
     @State private var weightError: String?
     @State private var dimensionsError: String?
     @State private var senderPhoneError: String?
     @State private var recipientPhoneError: String?
+    @State private var descriptionError: String? = nil
+    @State private var pickupLocationError: String? = nil
+    @State private var dropLocationError: String? = nil
+    @State private var pickupDateError: String? = nil
+    @State private var deliveryDateError: String? = nil
+    @State private var recipientNameError: String? = nil
+    @State private var instructionsError: String? = nil
 
     @EnvironmentObject var tabRouter: TabRouter
-    
 
     var body: some View {
         VStack {
@@ -48,56 +52,107 @@ struct AddConsignmentScreen: View {
                 }
                 .padding(.horizontal)
             }
+            .onChange(of: description) { newValue in
+                descriptionError = newValue.isEmpty ? "Description is required" : nil
+            }
+            .onChange(of: weight) { newValue in
+                if newValue.isEmpty {
+                    weightError = "Weight is required"
+                } else if let weightValue = Double(newValue), weightValue > 0 {
+                    weightError = nil
+                } else {
+                    weightError = "Weight must be a positive number"
+                }
+            }
+            .onChange(of: dimensions) { newValue in
+                let cleaned = newValue.replacingOccurrences(of: "x", with: "×")
+                if dimensions != cleaned {
+                    dimensions = cleaned
+                }
+                if cleaned.isEmpty {
+                    dimensionsError = "Dimensions are required"
+                } else {
+                    let components = cleaned.components(separatedBy: "×")
+                    if components.count != 3 || components.contains(where: { Double($0) == nil || Double($0)! <= 0 }) {
+                        dimensionsError = "Format as L×B×H with positive numbers"
+                    } else {
+                        dimensionsError = nil
+                    }
+                }
+            }
+            .onChange(of: pickupLocation) { newValue in
+                pickupLocationError = newValue.isEmpty ? "Pickup location is required" : nil
+            }
+            .onChange(of: dropLocation) { newValue in
+                dropLocationError = newValue.isEmpty ? "Drop location is required" : nil
+            }
+            .onChange(of: pickupDate) { _ in validateDates() }
+            .onChange(of: pickupTime) { _ in validateDates() }
+            .onChange(of: deliveryDate) { _ in validateDates() }
+            .onChange(of: senderPhone) { newValue in
+                if newValue.isEmpty {
+                    senderPhoneError = "Sender phone is required"
+                } else if !isValidPhoneNumber(newValue) {
+                    senderPhoneError = "Must be exactly 10 digits"
+                } else {
+                    senderPhoneError = nil
+                }
+            }
+            .onChange(of: recipientName) { newValue in
+                if newValue.isEmpty {
+                    recipientNameError = "Recipient name is required"
+                } else if !isValidName(newValue) {
+                    recipientNameError = "Name must contain only letters and spaces"
+                } else {
+                    recipientNameError = nil
+                }
+            }
+            .onChange(of: recipientPhone) { newValue in
+                if newValue.isEmpty {
+                    recipientPhoneError = "Recipient phone is required"
+                } else if !isValidPhoneNumber(newValue) {
+                    recipientPhoneError = "Must be exactly 10 digits"
+                } else {
+                    recipientPhoneError = nil
+                }
+            }
+            .onChange(of: instructions) { newValue in
+                if !newValue.isEmpty && !isAlphanumeric(newValue) {
+                    instructionsError = "Instructions must be alphanumeric"
+                } else {
+                    instructionsError = nil
+                }
+            }
 
-            saveButton // Replaced actionButtons with saveButton
+            saveButton
         }
         .navigationTitle("Add Consignment")
         .tint(.red)
         .onAppear {
             consignmentID = generateUniqueID()
             print("Available Drivers count on appear: \(dataService.employees.filter { $0.role == "Driver" }.count)")
-            print("Available Vehicles count on appear: \(vehicleViewModel.vehicles.filter { $0.status == .available  }.count)")
-            print("drivers are: \(dataService.employees.filter {$0.role == "Driver" && $0.status == "Available"})")
+            print("Available Vehicles count on appear: \(vehicleViewModel.vehicles.filter { $0.status == .available }.count)")
+            print("drivers are: \(dataService.employees.filter { $0.role == "Driver" && $0.status == "Available" })")
             print("drivers are: \(dataService.availableDrivers)")
-                    
         }
     }
 
     private var inputFieldsSection: some View {
         VStack(spacing: 16) {
-            // Display Consignment ID as non-editable using CustomTextField
             CustomTextField(placeholder: "Consignment ID", text: .constant(consignmentID), icon: "doc.text")
                 .disabled(true)
 
-            CustomTextField(placeholder: "Description", text: $description, icon: "note.text")
-            CustomTextField(placeholder: "Weight (kg)", text: $weight, icon: "scalemass", keyboardType: .decimalPad, errorMessage: weightError)
-                .onChange(of: weight) { newValue in
-                    if !newValue.isEmpty && Double(newValue) == nil {
-                        weightError = "Invalid weight"
-                    } else {
-                        weightError = nil
-                    }
-                }
-            CustomTextField(placeholder: "Dimensions (L×B×H)", text: $dimensions, icon: "ruler", errorMessage: dimensionsError)
-                .onChange(of: dimensions) { newValue in
-                    let cleaned = newValue.replacingOccurrences(of: "x", with: "×")
-                    if dimensions != cleaned {
-                        dimensions = cleaned
-                    }
-                    let components = cleaned.components(separatedBy: "×")
-                    if !cleaned.isEmpty && components.count != 3 {
-                        dimensionsError = "Format as L×B×H"
-                    } else {
-                        dimensionsError = nil
-                    }
-                }
+            CustomTextField(placeholder: "Description", text: $description, icon: "note.text", errorMessage: descriptionError)
 
-            // Consignment Type
+            CustomTextField(placeholder: "Weight (kg)", text: $weight, icon: "scalemass", keyboardType: .decimalPad, errorMessage: weightError)
+
+            CustomTextField(placeholder: "Dimensions (L×B×H)", text: $dimensions, icon: "ruler", errorMessage: dimensionsError)
+
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "shippingbox")
                         .foregroundColor(.gray)
-                    Text("Consignment Type")
+                    Text(selectedType?.rawValue.capitalized ?? "Consignment Type")
                         .foregroundColor(selectedType == nil ? .gray.opacity(0.6) : .primary)
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -120,13 +175,7 @@ struct AddConsignmentScreen: View {
                         Color.clear
                     }
                 )
-
-                if selectedType != nil {
-                    Text(selectedType!.rawValue.capitalized)
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .padding(.horizontal)
-                } else {
+                if selectedType == nil {
                     Text("Please select a type")
                         .font(.caption)
                         .foregroundColor(.red)
@@ -134,12 +183,11 @@ struct AddConsignmentScreen: View {
                 }
             }
 
-            // Vehicle Type
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "car")
                         .foregroundColor(.gray)
-                    Text("Vehicle Type")
+                    Text(selectedVehicleType?.rawValue ?? "Vehicle Type")
                         .foregroundColor(selectedVehicleType == nil ? .gray.opacity(0.6) : .primary)
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -162,13 +210,7 @@ struct AddConsignmentScreen: View {
                         Color.clear
                     }
                 )
-
-                if selectedVehicleType != nil {
-                    Text(selectedVehicleType!.rawValue)
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .padding(.horizontal)
-                } else {
+                if selectedVehicleType == nil {
                     Text("Please select a vehicle type")
                         .font(.caption)
                         .foregroundColor(.red)
@@ -178,19 +220,18 @@ struct AddConsignmentScreen: View {
         }
         .padding(.vertical, 8)
     }
-    
+
     private var vehicleAndDriverSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Vehicle and Driver")
                 .font(.headline)
                 .padding(.bottom, 4)
 
-            // Vehicle Selection - Now filtering vehicleViewModel.vehicles directly
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "truck.box.fill")
                         .foregroundColor(.gray)
-                    Text("Select Vehicle")
+                    Text(selectedVehicle?.model ?? "Select Vehicle")
                         .foregroundColor(selectedVehicle == nil ? .gray.opacity(0.6) : .primary)
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -215,13 +256,7 @@ struct AddConsignmentScreen: View {
                         Color.clear
                     }
                 )
-
-                if let selectedVehicle = selectedVehicle {
-                    Text("Selected: \(selectedVehicle.model)")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .padding(.horizontal)
-                } else {
+                if selectedVehicle == nil {
                     Text("Please select a vehicle")
                         .font(.caption)
                         .foregroundColor(.red)
@@ -229,12 +264,11 @@ struct AddConsignmentScreen: View {
                 }
             }
 
-            // Driver Selection - Filtering dataService.employees directly
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "figure.seated.seatbelt")
                         .foregroundColor(.gray)
-                    Text("Select Driver")
+                    Text(selectedDriver?.name ?? "Select Driver")
                         .foregroundColor(selectedDriver == nil ? .gray.opacity(0.6) : .primary)
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -257,13 +291,7 @@ struct AddConsignmentScreen: View {
                         Color.clear
                     }
                 )
-
-                if let selectedDriver = selectedDriver {
-                    Text("Selected: \(selectedDriver.name)")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .padding(.horizontal)
-                } else {
+                if selectedDriver == nil {
                     Text("Please select a driver")
                         .font(.caption)
                         .foregroundColor(.red)
@@ -276,14 +304,12 @@ struct AddConsignmentScreen: View {
 
     private var tripSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // Pickup Location
             HStack(spacing: 8) {
                 ZStack {
                     Circle().fill(Color.green).frame(width: 15, height: 15)
                     Circle().fill(Color.white).frame(width: 7, height: 7)
                 }
                 .frame(width: 20)
-
                 TextField("Pickup location", text: $pickupLocation)
                     .font(.subheadline)
                     .padding(.vertical, 6)
@@ -294,8 +320,13 @@ struct AddConsignmentScreen: View {
                         }
                     )
             }
+            if let error = pickupLocationError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.leading, 28)
+            }
 
-            // Divider
             HStack(spacing: 0) {
                 Spacer().frame(width: 28)
                 ZStack {
@@ -307,14 +338,12 @@ struct AddConsignmentScreen: View {
                 .padding(.vertical, 4)
             }
 
-            // Drop Location
             HStack(spacing: 8) {
                 ZStack {
                     Circle().fill(Color.red).frame(width: 15, height: 15)
                     Circle().fill(Color.white).frame(width: 7, height: 7)
                 }
                 .frame(width: 20)
-
                 TextField("Drop location", text: $dropLocation)
                     .font(.subheadline)
                     .padding(.vertical, 6)
@@ -324,6 +353,12 @@ struct AddConsignmentScreen: View {
                             Color.clear
                         }
                     )
+            }
+            if let error = dropLocationError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.leading, 28)
             }
         }
         .padding(.horizontal, 8)
@@ -358,7 +393,6 @@ struct AddConsignmentScreen: View {
 
     private var datePickersSection: some View {
         VStack(spacing: 16) {
-            // Pickup Date & Time Card
             VStack(spacing: 12) {
                 HStack {
                     Image(systemName: "calendar.badge.clock")
@@ -368,12 +402,15 @@ struct AddConsignmentScreen: View {
                         .foregroundColor(.primary)
                     Spacer()
                 }
-
-                DatePicker("Date", selection: $pickupDate, displayedComponents: .date)
+                DatePicker("Date", selection: $pickupDate, in: Date()..., displayedComponents: .date)
                     .datePickerStyle(.compact)
-
                 DatePicker("Time", selection: $pickupTime, displayedComponents: .hourAndMinute)
                     .datePickerStyle(.compact)
+                if let error = pickupDateError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
             }
             .padding()
             .background(
@@ -382,7 +419,6 @@ struct AddConsignmentScreen: View {
                     .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
             )
 
-            // Delivery Date Card
             VStack(spacing: 12) {
                 HStack {
                     Image(systemName: "calendar.badge.checkmark")
@@ -392,9 +428,13 @@ struct AddConsignmentScreen: View {
                         .foregroundColor(.primary)
                     Spacer()
                 }
-
-                DatePicker("Delivery Date", selection: $deliveryDate, displayedComponents: .date)
+                DatePicker("Delivery Date", selection: $deliveryDate, in: pickupDate..., displayedComponents: .date)
                     .datePickerStyle(.compact)
+                if let error = deliveryDateError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
             }
             .padding()
             .background(
@@ -413,26 +453,12 @@ struct AddConsignmentScreen: View {
                 .padding(.bottom, 4)
 
             CustomTextField(placeholder: "Sender Phone", text: $senderPhone, icon: "phone", keyboardType: .phonePad, errorMessage: senderPhoneError)
-                .onChange(of: senderPhone) { newValue in
-                    if !newValue.isEmpty && !isValidPhoneNumber(newValue) {
-                        senderPhoneError = "Invalid phone number"
-                    } else {
-                        senderPhoneError = nil
-                    }
-                }
 
-            CustomTextField(placeholder: "Recipient Name", text: $recipientName, icon: "person")
+            CustomTextField(placeholder: "Recipient Name", text: $recipientName, icon: "person", errorMessage: recipientNameError)
 
             CustomTextField(placeholder: "Recipient Phone", text: $recipientPhone, icon: "phone.and.waveform.fill", keyboardType: .phonePad, errorMessage: recipientPhoneError)
-                .onChange(of: recipientPhone) { newValue in
-                    if !newValue.isEmpty && !isValidPhoneNumber(newValue) {
-                        recipientPhoneError = "Invalid phone number"
-                    } else {
-                        recipientPhoneError = nil
-                    }
-                }
 
-            CustomTextEditor(placeholder: "Special Instructions", text: $instructions, icon: "text.bubble", height: 100)
+            CustomTextEditor(placeholder: "Special Instructions", text: $instructions, icon: "text.bubble", height: 100, errorMessage: instructionsError)
         }
         .padding(.vertical, 8)
     }
@@ -449,50 +475,104 @@ struct AddConsignmentScreen: View {
         .buttonStyle(PrimaryButtonStyle())
         .padding(.horizontal)
         .padding(.bottom)
-        .disabled(consignmentID.isEmpty || selectedType == nil || selectedVehicleType == nil)
+        .disabled(consignmentID.isEmpty || selectedType == nil || selectedVehicleType == nil || selectedVehicle == nil || selectedDriver == nil)
     }
-
 
     private func validateFields() -> Bool {
         var isValid = true
-        if weight.isEmpty || Double(weight) == nil {
-            weightError = "Please enter a valid weight"
-            isValid = false
-        } else {
-            weightError = nil
-        }
 
-        if !dimensions.isEmpty && dimensions.components(separatedBy: "×").count != 3 {
-            dimensionsError = "Format as L×B×H"
+        if description.isEmpty {
+            descriptionError = "Description is required"
             isValid = false
-        } else {
-            dimensionsError = nil
         }
-
-        if !senderPhone.isEmpty && !isValidPhoneNumber(senderPhone) {
-            senderPhoneError = "Invalid phone number"
+        if weight.isEmpty || (Double(weight) ?? 0) <= 0 {
+            weightError = weight.isEmpty ? "Weight is required" : "Weight must be a positive number"
             isValid = false
-        } else {
-            senderPhoneError = nil
         }
-
-        if !recipientPhone.isEmpty && !isValidPhoneNumber(recipientPhone) {
-            recipientPhoneError = "Invalid phone number"
+        if dimensions.isEmpty || dimensions.components(separatedBy: "×").count != 3 || dimensions.components(separatedBy: "×").contains(where: { Double($0) == nil || Double($0)! <= 0 }) {
+            dimensionsError = dimensions.isEmpty ? "Dimensions are required" : "Format as L×B×H with positive numbers"
             isValid = false
-        } else {
-            recipientPhoneError = nil
+        }
+        if pickupLocation.isEmpty {
+            pickupLocationError = "Pickup location is required"
+            isValid = false
+        }
+        if dropLocation.isEmpty {
+            dropLocationError = "Drop location is required"
+            isValid = false
+        }
+        let pickupDateTime = combineDateWithTime(date: pickupDate, time: pickupTime)
+        if pickupDateTime < Date() {
+            pickupDateError = "Pickup date and time must be in the future"
+            isValid = false
+        }
+        if deliveryDate < pickupDate {
+            deliveryDateError = "Delivery date must be on or after pickup date"
+            isValid = false
+        }
+        if senderPhone.isEmpty || !isValidPhoneNumber(senderPhone) {
+            senderPhoneError = senderPhone.isEmpty ? "Sender phone is required" : "Must be exactly 10 digits"
+            isValid = false
+        }
+        if recipientName.isEmpty || !isValidName(recipientName) {
+            recipientNameError = recipientName.isEmpty ? "Recipient name is required" : "Name must contain only letters and spaces"
+            isValid = false
+        }
+        if recipientPhone.isEmpty || !isValidPhoneNumber(recipientPhone) {
+            recipientPhoneError = recipientPhone.isEmpty ? "Recipient phone is required" : "Must be exactly 10 digits"
+            isValid = false
+        }
+        if !instructions.isEmpty && !isAlphanumeric(instructions) {
+            instructionsError = "Instructions must be alphanumeric"
+            isValid = false
+        }
+        if selectedType == nil || selectedVehicleType == nil || selectedVehicle == nil || selectedDriver == nil {
+            isValid = false
         }
 
         return isValid
     }
 
     private func isValidPhoneNumber(_ number: String) -> Bool {
-        // Basic phone number validation (you might want a more robust solution)
-        return number.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) == nil && !number.isEmpty
+        let regex = "^\\d{10}$"
+        return NSPredicate(format: "SELF MATCHES %@", regex).evaluate(with: number)
+    }
+
+    private func isValidName(_ name: String) -> Bool {
+        let regex = "^[a-zA-Z ]+$"
+        return NSPredicate(format: "SELF MATCHES %@", regex).evaluate(with: name)
+    }
+
+    private func isAlphanumeric(_ string: String) -> Bool {
+        let regex = "^[a-zA-Z0-9 ]+$"
+        return NSPredicate(format: "SELF MATCHES %@", regex).evaluate(with: string)
+    }
+
+    private func combineDateWithTime(date: Date, time: Date) -> Date {
+        let calendar = Calendar.current
+        let dateComponents = calendar.dateComponents([.year, .month, .day], from: date)
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+        var combinedComponents = dateComponents
+        combinedComponents.hour = timeComponents.hour
+        combinedComponents.minute = timeComponents.minute
+        return calendar.date(from: combinedComponents) ?? Date()
+    }
+
+    private func validateDates() {
+        let pickupDateTime = combineDateWithTime(date: pickupDate, time: pickupTime)
+        if pickupDateTime < Date() {
+            pickupDateError = "Pickup date and time must be in the future"
+        } else {
+            pickupDateError = nil
+        }
+        if deliveryDate < pickupDate {
+            deliveryDateError = "Delivery date must be on or after pickup date"
+        } else {
+            deliveryDateError = nil
+        }
     }
 
     private func saveConsignment() async {
-        // Create a new consignment
         let newConsignment = Consignment(
             internal_id: nil,
             id: consignmentID,
@@ -512,15 +592,9 @@ struct AddConsignmentScreen: View {
             instructions: instructions,
             created_at: nil
         )
-
-        // Call the function to create consignment and trip
-        // Ensure you pass the correct driver and vehicle objects
         await store.createConsignmentWithTrip(consignment: newConsignment, driver: selectedDriver!, vehicle: selectedVehicle!)
     }
 
-
-
-    // Function to generate a unique consignment ID
     private func generateUniqueID() -> String {
         var newID: String
         repeat {
@@ -530,16 +604,11 @@ struct AddConsignmentScreen: View {
         return newID
     }
 }
-// MARK: - UI Components
 
 struct CustomTextField: View {
-
     let placeholder: String
-
     @Binding var text: String
-
     var icon: String? = nil
-
     var keyboardType: UIKeyboardType = .default
     var errorMessage: String? = nil
 
@@ -551,7 +620,6 @@ struct CustomTextField: View {
                         .foregroundColor(.gray)
                         .frame(width: 20)
                 }
-
                 TextField("", text: $text)
                     .placeholder(when: text.isEmpty) {
                         Text(placeholder)
@@ -567,7 +635,6 @@ struct CustomTextField: View {
                     .fill(Color(.systemGray6))
                     .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
             )
-
             if let errorMessage = errorMessage {
                 Text(errorMessage)
                     .font(.caption)
@@ -576,15 +643,14 @@ struct CustomTextField: View {
         }
     }
 }
+
 struct CustomTextEditor: View {
-
     let placeholder: String
-
     @Binding var text: String
-
     var icon: String?
-
     var height: CGFloat = 100
+    var errorMessage: String? = nil
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .top) {
@@ -594,14 +660,12 @@ struct CustomTextEditor: View {
                         .frame(width: 20)
                         .padding(.top, 8)
                 }
-
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $text)
                         .frame(minHeight: height)
                         .foregroundColor(.primary)
                         .font(.system(size: 16, weight: .regular))
                         .scrollContentBackground(.hidden)
-
                     if text.isEmpty {
                         Text(placeholder)
                             .foregroundColor(.gray.opacity(0.6))
@@ -616,14 +680,18 @@ struct CustomTextEditor: View {
                     .fill(Color(.systemGray6))
                     .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
             )
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
         }
     }
 }
-struct ConsignmentRow: View {
 
+struct ConsignmentRow: View {
     let consignment: Consignment
     
-    // Add these computed properties inside the struct
     private var iconColor: Color {
         switch consignment.type {
         case .priority: return .red
@@ -634,9 +702,9 @@ struct ConsignmentRow: View {
     
     private var iconSymbol: String {
         switch consignment.type {
-        case .priority: return "arrow.up"
-        case .medium: return "minus"
-        case .standard: return "checkmark"
+        case .priority: return "chevron.up.2"
+        case .medium: return "equal"
+        case .standard: return "chevron.down.2"
         }
     }
     
@@ -647,14 +715,12 @@ struct ConsignmentRow: View {
                     .foregroundColor(.white)
                     .padding(8)
                     .background(iconColor)
-                
                 VStack(alignment: .leading) {
                     Text(consignment.id).font(.headline)
                     Text("Type: \(consignment.type.rawValue.capitalized)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-                
                 Spacer()
             }
             .padding(.vertical, 4)

@@ -1,17 +1,12 @@
-// MaintenanceView.swift
 import SwiftUI
 
 struct MaintenanceView: View {
     @State private var selectedTab = 0 // 0 for Tasks, 1 for History
     @StateObject private var store = MaintenanceStore() // Initialize here
-    @State private var searchText = "" // For history search
+    @State private var searchText = "" // For history and tasks search
     
     @State private var navigateToProfile = false
-    // No need to inject AppState if ProfileViewModel handles role and profile fetching
-    // @EnvironmentObject var appState: AppState
     @StateObject private var profileViewModel = ProfileViewModel() // Already fetches on init
-
-    // init() remains the same
 
     // Filtered tasks for the Tasks tab
     var pendingTasks: [IssueReport] {
@@ -20,6 +15,27 @@ struct MaintenanceView: View {
 
     var inProgressTasks: [IssueReport] {
         store.tasks.filter { $0.status.lowercased() == "in progress" }
+    }
+    
+    // Filtered tasks for search in Tasks tab
+    var filteredTasks: (pending: [IssueReport], inProgress: [IssueReport]) {
+        if searchText.isEmpty {
+            return (pendingTasks, inProgressTasks)
+        } else {
+            let filteredPending = pendingTasks.filter { report in
+                report.id.uuidString.localizedCaseInsensitiveContains(searchText) ||
+                report.description.localizedCaseInsensitiveContains(searchText) ||
+                report.type.localizedCaseInsensitiveContains(searchText) ||
+                report.category.localizedCaseInsensitiveContains(searchText)
+            }
+            let filteredInProgress = inProgressTasks.filter { report in
+                report.id.uuidString.localizedCaseInsensitiveContains(searchText) ||
+                report.description.localizedCaseInsensitiveContains(searchText) ||
+                report.type.localizedCaseInsensitiveContains(searchText) ||
+                report.category.localizedCaseInsensitiveContains(searchText)
+            }
+            return (filteredPending, filteredInProgress)
+        }
     }
     
     // Filtered history
@@ -52,38 +68,25 @@ struct MaintenanceView: View {
             }
             .accentColor(Color(hex: "#F7C24B"))
             .navigationDestination(isPresented: $navigateToProfile) {
-                // Assuming ProfileView also uses ProfileViewModel
                 ProfileView().environmentObject(profileViewModel)
             }
             .onAppear {
-                // ProfileViewModel fetches its own profile on init.
-                // We just need to wait for it if it's still loading,
-                // then set the technician ID in the store and fetch tasks.
                 Task {
-    
                     if profileViewModel.isLoading {
                         print("MaintenanceView.onAppear: ProfileViewModel might be loading. Waiting or re-triggering fetchUserProfile if necessary.")
-                        // Await the existing fetch if it's ongoing, or trigger if it wasn't.
-                        // Since `fetchUserProfile` is called in `init`, we check its state.
-                        // A better pattern might be for ProfileViewModel to publish a "profileReady" state.
-                        // For now, let's check if technicianProfile is already set.
                         if profileViewModel.technicianProfile == nil && !profileViewModel.isLoading {
                              print("MaintenanceView.onAppear: technicianProfile is nil and not loading, calling fetchUserProfile.")
-                             await profileViewModel.fetchUserProfile() // Call it if not already loaded
+                             await profileViewModel.fetchUserProfile()
                         }
                     }
                     
-                    // After profile fetch attempt (either from init or above call)
                     if let techProfile = profileViewModel.technicianProfile {
                         store.currentTechnicianId = techProfile.id
                         print("Technician ID set in MaintenanceStore: \(techProfile.id)")
                     } else {
                         print("Could not get technician profile or ID for MaintenanceStore. User role might not be technician or fetch failed.")
-                        // Handle this case: maybe show an error or prevent task fetching
-                        // For now, fetchMaintenanceTasks might fetch all tasks if currentTechnicianId is nil.
                     }
                     
-                    // Initial fetch of tasks
                     await store.fetchMaintenanceTasks()
                 }
             }
@@ -96,8 +99,16 @@ struct MaintenanceView: View {
             backgroundGradient
             
             VStack(spacing: 0) {
-                // Pass profileViewModel to profileHeader
                 profileHeader(profileVM: profileViewModel)
+                    .padding(.bottom, 8)
+                
+                // Search bar below profile header
+                TextField("Search tasks...", text: $searchText)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(8)
+                    .padding(.horizontal)
                     .padding(.bottom, 8)
 
                 if store.isLoadingTasks {
@@ -111,26 +122,26 @@ struct MaintenanceView: View {
                         .multilineTextAlignment(.center)
                         .padding()
                     Spacer()
-                } else if pendingTasks.isEmpty && inProgressTasks.isEmpty {
+                } else if filteredTasks.pending.isEmpty && filteredTasks.inProgress.isEmpty {
                     Spacer()
-                    Text("No maintenance tasks assigned.")
+                    Text("No maintenance tasks found.")
                         .foregroundColor(.secondary)
                         .padding()
                     Spacer()
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 16) {
-                            if !inProgressTasks.isEmpty {
+                            if !filteredTasks.inProgress.isEmpty {
                                 sectionHeader(title: "In Progress")
-                                ForEach(inProgressTasks) { taskReport in
+                                ForEach(filteredTasks.inProgress) { taskReport in
                                     MaintenanceTaskCard(issueReport: taskReport)
                                         .padding(.horizontal)
                                 }
                             }
                             
-                            if !pendingTasks.isEmpty {
+                            if !filteredTasks.pending.isEmpty {
                                 sectionHeader(title: "Pending / New Tasks")
-                                ForEach(pendingTasks) { taskReport in
+                                ForEach(filteredTasks.pending) { taskReport in
                                     MaintenanceTaskCard(issueReport: taskReport)
                                         .padding(.horizontal)
                                 }
@@ -139,11 +150,6 @@ struct MaintenanceView: View {
                         .padding(.vertical)
                     }
                     .refreshable {
-                        // Optionally re-fetch profile if needed, then tasks
-                        // await profileViewModel.fetchUserProfile()
-                        // if let techProfile = profileViewModel.technicianProfile {
-                        //     store.currentTechnicianId = techProfile.id
-                        // }
                         await store.fetchMaintenanceTasks()
                     }
                 }
@@ -160,7 +166,7 @@ struct MaintenanceView: View {
             if store.isLoadingTasks && store.history.isEmpty {
                 ProgressView("Loading History...")
             } else if filteredHistory.isEmpty {
-                 VStack { // Ensure content is centered
+                VStack {
                     Spacer()
                     Text("No maintenance history found.")
                         .foregroundColor(.secondary)
@@ -177,7 +183,7 @@ struct MaintenanceView: View {
                     }
                 }
                 .listStyle(.plain)
-                .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search by ID, Description...")
+                .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
             }
         }
         .navigationTitle("Maintenance History")
@@ -205,7 +211,6 @@ struct MaintenanceView: View {
             .padding(.top, 10)
     }
     
-    // Modified profileHeader to accept ProfileViewModel
     private func profileHeader(profileVM: ProfileViewModel) -> some View {
         HStack {
             Button(action: { navigateToProfile = true }) {
@@ -218,12 +223,10 @@ struct MaintenanceView: View {
                 Text("Hello,")
                     .font(.caption).foregroundColor(Color(hex: "#555555"))
                 
-                // Display Technician Name from the passed ProfileViewModel
                 Text(profileVM.technicianProfile?.name ?? (profileVM.isLoading ? "Loading..." : "Technician"))
                     .font(.title2.weight(.bold))
                     .foregroundColor(Color(hex: "#D6A03A"))
                     .redacted(reason: profileVM.isLoading && profileVM.technicianProfile == nil ? .placeholder : [])
-
             }
             Spacer()
             Button(action: {}) {

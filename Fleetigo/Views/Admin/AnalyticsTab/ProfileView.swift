@@ -15,6 +15,7 @@ struct ProfileView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showDeletePhotoAlert = false
     @State private var showDocumentsView = false
+    @State private var showAccessibilityAlert = false
     @AppStorage("isDarkMode") private var isDarkMode = false
 
     let customBlue = Color(hex: "#4E8FFF")
@@ -69,6 +70,24 @@ struct ProfileView: View {
                                 }
                         }
 
+                        Section("Accessibility") {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button {
+                                    showAccessibilityAlert = true
+                                } label: {
+                                    HStack {
+                                        Text("Show Vehicle Motion Cues")
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                Text("Helps reduce motion sickness when using the app in a moving vehicle.")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                        }
+
                         Section {
                             Button("Sign Out") {
                                 appState.signOut()
@@ -77,7 +96,7 @@ struct ProfileView: View {
                             .frame(maxWidth: .infinity, alignment: .center)
                         }
                     }
-                    .onAppear { // Call updateEditableProfiles when the Form appears
+                    .onAppear {
                         updateEditableProfiles()
                     }
                 }
@@ -113,6 +132,14 @@ struct ProfileView: View {
             } message: {
                 Text("Are you sure you want to delete your profile photo?")
             }
+            .alert("Accessibility Settings", isPresented: $showAccessibilityAlert) {
+                Button("OK") {
+                    openSettingsHomePage()
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("You will now be redirected to the Settings app.\n\nTo enable 'Vehicle Motion Cues', Go to \n'Accessibility' > select 'Motion' > Turn on 'Show Vehicle Motion Cues'")
+            }
             .sheet(isPresented: $showDocumentsView) {
                 if viewModel.userRole == .driver {
                     DocumentsView(documents: .constant([]), isEditing: $isEditing)
@@ -123,7 +150,6 @@ struct ProfileView: View {
                 }
             }
             .preferredColorScheme(isDarkMode ? .dark : .light)
-            // Removed the initial .onAppear here, as we want to update after data loads
         }
         .onReceive(viewModel.$adminProfile) { newAdminProfile in
             if !isEditing, let _ = newAdminProfile {
@@ -297,7 +323,6 @@ struct ProfileView: View {
 
     private func cancelEditing() {
         isEditing = false
-        // No need to updateEditableProfiles here, as we want to discard changes
     }
 
     private func saveChanges() {
@@ -316,8 +341,17 @@ struct ProfileView: View {
             break
         }
     }
-}
 
+    private func openSettingsHomePage() {
+        if let url = URL(string: "App-prefs:root=") {
+            UIApplication.shared.open(url, options: [:]) { success in
+                if !success {
+                    print("Failed to open Settings app. URL scheme may not be supported.")
+                }
+            }
+        }
+    }
+}
 
 // MARK: - Editable Profile Models
 struct EditableAdminProfile {
@@ -404,12 +438,8 @@ struct EditableTechnicianProfile {
     }
 }
 
-
-
-
-
 struct DocumentsView: View {
-    @Binding var documents: [Document] // This needs to be adapted based on the actual document structure
+    @Binding var documents: [Document]
     @Binding var isEditing: Bool
     @State private var isImporting = false
     @State private var currentDocumentType: DocumentType?
@@ -424,7 +454,6 @@ struct DocumentsView: View {
         }
     }
 
-    // Implement document handling based on your requirements
     private func handlePDFSelection(_ result: Result<[URL], Error>) {
         // ...
     }
@@ -449,7 +478,6 @@ enum DocumentType: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-// Extension to make optional Bindings work more easily with TextFields
 extension Binding where Value: Equatable {
     var bound: Self {
         return self

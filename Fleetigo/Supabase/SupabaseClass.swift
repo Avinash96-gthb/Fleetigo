@@ -1480,6 +1480,23 @@ extension SupabaseManager {
             return nil
         }
     }
+    
+    func fetchPastTrips(forDriverID driverId: UUID, limit: Int = 20) async throws -> [Trip] {
+            print("SupabaseManager: Fetching past trips for driver ID: \(driverId)...")
+            let response: [Trip] = try await client
+                .from("trips")
+                .select("*") // Select all columns from Trip
+                .eq("driver_id", value: driverId.uuidString)
+                // Fetch trips that are NOT 'ongoing'
+                .not("status", operator: .eq, value: "ongoing") // Exclude ongoing trips
+                .order("end_time", ascending: false) // Show most recently completed first
+                .limit(limit)
+                .execute()
+                .value
+            
+            print("SupabaseManager: Fetched \(response.count) past trips for driver \(driverId).")
+            return response
+        }
 
     
 }
