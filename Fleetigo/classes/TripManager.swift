@@ -184,6 +184,9 @@ class TripManager: ObservableObject {
 
                     let startCoordinate = startItem?.placemark.coordinate
                     let endCoordinate = endItem?.placemark.coordinate
+                    
+                    print("TripManager: Geocoded Start: \(startCoordinate?.latitude ?? -999), \(startCoordinate?.longitude ?? -999)")
+                       print("TripManager: Geocoded End: \(endCoordinate?.latitude ?? -999), \(endCoordinate?.longitude ?? -999)")
 
                     DispatchQueue.main.async {
                         if var currentTripDetails = self.currentTripDetails {

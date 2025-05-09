@@ -28,6 +28,7 @@ struct GarageTab: View {
     @State private var selectedFilter: TabFilter = .complaints
     @State private var searchText: String = ""
     @State private var selectedPriority: PriorityFilter = .all
+    @StateObject var profileViewModel = ProfileViewModel()
 
     var filteredIssueReports: [IssueReport] {
         issueManager.issueReports.filter { report in
@@ -202,13 +203,56 @@ struct GarageTab: View {
     }
 
     private func handleStatusUpdate(reportId: UUID, newStatus: String) {
-        Task {
-            do {
-                try await issueManager.updateIssueReportStatusInList(issueReportId: reportId, newStatus: newStatus)
-            } catch {
-                print("Error updating status from view: \(error)")
-                // Optionally show an alert to the user here
+            Task {
+                // Handle the specific case for APPROVAL ("In Progress")
+                if newStatus == "In Progress" {
+                    // 1. Get current Admin ID from ProfileViewModel
+                    guard profileViewModel.userRole == .admin, let adminId = profileViewModel.adminProfile?.id else {
+                        print("GarageTab Error: Cannot approve. Not logged in as admin or admin profile not loaded.")
+                        // TODO: Show error alert to the user
+                        return
+                    }
+
+                    // 2. Find the specific IssueReport locally to get its vehicleId
+                    guard let reportToApprove = issueManager.issueReports.first(where: { $0.id == reportId }) else {
+                        print("GarageTab Error: Could not find report \(reportId) locally to get vehicle ID.")
+                         // TODO: Show error alert to the user
+                        return
+                    }
+                    let vehicleId = reportToApprove.vehicleId // This can be nil
+
+                    print("GarageTab: Attempting to approve Report ID: \(reportId), Admin ID: \(adminId), Vehicle ID: \(vehicleId?.uuidString ?? "N/A")")
+
+                    // 3. Call the specific approval function in IssueManager
+                    do {
+                        try await issueManager.approveIssueReportAndUpdateLocal(
+                            reportId: reportId,
+                            adminId: adminId,
+                            vehicleId: vehicleId
+                        )
+                        print("GarageTab: Report \(reportId) approved successfully (DB & Local status updated).")
+                        // Optional: Trigger a UI refresh element if needed, though @StateObject should handle it.
+                    } catch {
+                        print("GarageTab Error: Failed to approve report \(reportId): \(error)")
+                        // TODO: Show error alert to the user
+                        // Consider if UI needs explicit reverting if optimistic updates were done elsewhere
+                    }
+
+                } else {
+                    // Handle OTHER status updates (e.g., "Rejected", "Pending" from Re-open)
+                    // Use the simpler status-only update function for these cases
+                    print("GarageTab: Handling status update for Report ID: \(reportId) to Status: \(newStatus)")
+                    do {
+                        try await issueManager.updateIssueReportStatusInList(
+                            issueReportId: reportId,
+                            newStatus: newStatus
+                        )
+                        print("GarageTab: Report \(reportId) status updated to \(newStatus).")
+                    } catch {
+                        print("GarageTab Error: Failed to update status to \(newStatus) for report \(reportId): \(error)")
+                        // TODO: Show error alert to the user
+                    }
+                }
             }
         }
     }
-}

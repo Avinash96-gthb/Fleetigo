@@ -116,31 +116,94 @@ struct AnalyticsTab: View {
     
     // MARK: - Notification View (add this at the bottom of the file)
     struct NotificationView: View {
-        @AppStorage("isDarkMode") private var isDarkMode = false
-        let notifications = [
-            "New analytics report available",
-            "Revenue exceeded expectations this month",
-            "Reminder: Quarterly review tomorrow",
-            "New fleet data updated"
-        ]
-        
+        @AppStorage("isDarkMode") private var isDarkMode = false // Keep if used elsewhere
+        @StateObject private var viewModel = NotificationViewModel()
+
         var body: some View {
-            List {
-                ForEach(notifications, id: \.self) { notification in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(notification)
-                            .font(.system(size: 16, weight: .medium))
-                        Text("2 hours ago")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
+            NavigationStack { // Use NavigationStack for title
+                Group { // Use Group for conditional content
+                    if viewModel.isLoading {
+                        VStack { // Center ProgressView
+                            Spacer()
+                            ProgressView("Loading Notifications...")
+                            Spacer()
+                        }
+                    } else if let errorMessage = viewModel.errorMessage {
+                        VStack { // Center Error Message
+                            Spacer()
+                            Text("Error: \(errorMessage)")
+                                .foregroundColor(.red)
+                                .multilineTextAlignment(.center)
+                                .padding()
+                            Button("Retry") {
+                                Task { await viewModel.fetchNotifications() }
+                            }
+                            .padding(.top)
+                            Spacer()
+                        }
+                    } else if viewModel.formattedNotifications.isEmpty {
+                        VStack { // Center No Notifications Message
+                            Spacer()
+                            Text("No new notifications.")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                    } else {
+                        List {
+                            ForEach(viewModel.formattedNotifications) { notificationItem in
+                                VStack(alignment: .leading, spacing: 5) { // Increased spacing slightly
+                                    Text(notificationItem.message)
+                                        .font(.system(size: 15, weight: .medium)) // Slightly smaller for better fit
+                                        .lineLimit(3) // Allow up to 3 lines for message
+
+                                    // Display the original warning's timestamp formatted
+                                    Text(notificationItem.originalWarning.displayTimestamp)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(.vertical, 8)
+                                // Optional: Add tap action to navigate to consignment/trip details
+                                // .onTapGesture {
+                                //     navigateToWarningDetails(warning: notificationItem.originalWarning)
+                                // }
+                            }
+                        }
+                        .listStyle(.plain) // Plain style for a cleaner look
+                        .refreshable { // Add pull-to-refresh
+                            await viewModel.fetchNotifications()
+                        }
                     }
-                    .padding(.vertical, 8)
                 }
+                .navigationTitle("Notifications")
+                .navigationBarTitleDisplayMode(.inline) // Or .large if preferred
+                .onAppear {
+                    // Fetch notifications when the view appears if not already loaded
+                    if viewModel.formattedNotifications.isEmpty && !viewModel.isLoading {
+                        Task {
+                            await viewModel.fetchNotifications()
+                        }
+                    }
+                }
+                // Optional: Add a toolbar button to manually refresh
+                // .toolbar {
+                //     ToolbarItem(placement: .navigationBarTrailing) {
+                //         Button {
+                //             Task { await viewModel.fetchNotifications() }
+                //         } label: {
+                //             Image(systemName: "arrow.clockwise")
+                //         }
+                //         .disabled(viewModel.isLoading)
+                //     }
+                // }
             }
-            .listStyle(.plain)
-            .navigationTitle("Notifications")
-            .navigationBarTitleDisplayMode(.inline)
+            .preferredColorScheme(isDarkMode ? .dark : .light) // Apply dark mode preference
         }
+
+        // Placeholder for navigation if you add tap action
+        // private func navigateToWarningDetails(warning: RouteDeviationWarning) {
+        //     print("Navigate to details for warning related to trip: \(warning.trip_id)")
+        //     // Implement navigation logic here, e.g., using a NavigationLink or changing a @State var
+        // }
     }
     
     // MARK: - Monthly Revenue Data Struct

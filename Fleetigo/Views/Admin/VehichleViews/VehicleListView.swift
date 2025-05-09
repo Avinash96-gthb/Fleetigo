@@ -67,7 +67,6 @@ struct VehicleListView: View {
                 NativeSearchBar(text: $viewModel.searchText)
                     .frame(height: 44)
                     .padding(.horizontal)
-                    .background(Color(.systemBackground))
 
                 Menu {
                     Button("All Types") { viewModel.clearVehicleTypes() }

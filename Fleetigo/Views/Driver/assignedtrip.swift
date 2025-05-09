@@ -241,6 +241,10 @@ struct TripCardView: View {
                                             endCoordinate: currentTripDetails.endCoordinate,
                                             consignmentId: currentTripDetails.base.consignmentId, vehichleId: currentTripDetails.truckNumber, driverId: currentTripDetails.base.driverId
                                         )
+                                        .onAppear { // Log when the destination appears
+                                                print("PreTripChecklistView: Received StartCoord: \(currentTripDetails.startCoordinate?.latitude ?? -999), \(currentTripDetails.startCoordinate?.longitude ?? -999)")
+                                                print("PreTripChecklistView: Received EndCoord: \(currentTripDetails.endCoordinate?.latitude ?? -999), \(currentTripDetails.endCoordinate?.longitude ?? -999)")
+                                            }
                                     ) {
                                         Text("Next")
                                             .fontWeight(.medium)

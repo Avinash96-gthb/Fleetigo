@@ -188,4 +188,33 @@ class IssueManager: ObservableObject {
             await fetchIssueReportsList()
         }
     }
+    
+    @MainActor
+        func approveIssueReportAndUpdateLocal(reportId: UUID, adminId: UUID, vehicleId: UUID?) async throws {
+            print("IssueManager: Approving report \(reportId) by admin \(adminId)...")
+            
+            // Call SupabaseManager to perform DB updates for approval
+            try await SupabaseManager.shared.approveIssueReport(
+                reportId: reportId,
+                adminId: adminId,
+                vehicleId: vehicleId
+            )
+            
+            // Update local model state for the issue report
+            if let index = issueReports.firstIndex(where: { $0.id == reportId }) {
+                issueReports[index].status = "In Progress"
+                // Note: We cannot update issueReports[index].adminId = adminId locally
+                // because `adminId` is a `let` constant in the IssueReport struct.
+                // The UI will reflect the "In Progress" status immediately.
+                // To see the adminId reflected locally without re-fetching,
+                // the IssueReport struct would need `var adminId: UUID?`.
+                print("IssueManager: Local issue report \(reportId) status updated to In Progress.")
+            } else {
+                 print("IssueManager Warning: Could not find report \(reportId) locally to update status after approval.")
+            }
+            
+            // Optional: Update local vehicle cache if you maintain one
+            // e.g., find vehicle with vehicleId and set its status to .garage
+            print("IssueManager: Approval process complete for report \(reportId).")
+        }
 }

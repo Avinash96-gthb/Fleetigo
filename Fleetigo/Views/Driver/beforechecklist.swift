@@ -74,7 +74,11 @@ struct PreTripChecklistView: View {
 
                         // Hidden link for programmatic navigation to TripNavigationView
                         NavigationLink(
-                            destination: TripNavigationView(consignmentId: consignmentId, vehichleId: vehichleId, driverId: driverId, startCoordinate: startCoordinate, endCoordinate: endCoordinate),
+                            destination: TripNavigationView(consignmentId: consignmentId, vehicleId: vehichleId, driverId: driverId, startCoordinate: startCoordinate, endCoordinate: endCoordinate)
+                                .onAppear { // Log when TripNavigationView appears
+                                         print("TripNavigationView: Received StartCoord: \(startCoordinate?.latitude ?? -999), \(startCoordinate?.longitude ?? -999)")
+                                         print("TripNavigationView: Received EndCoord: \(endCoordinate?.latitude ?? -999), \(endCoordinate?.longitude ?? -999)")
+                                    },
                             isActive: $navigateToNavigationView
                         ) {
                             EmptyView()

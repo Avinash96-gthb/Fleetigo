@@ -1311,6 +1311,177 @@ extension SupabaseManager {
             .eq("id", value: issueReportId) // Use the correct ID column name
             .execute()
     }
+    
+    // SupabaseManager.swift (add these functions)
+
+    // MARK: - Driver Location Tracking
+    func insertDriverLocation(location: DriverLocation) async throws {
+        try await client
+            .from("driver_locations")
+            .insert(location) // Supabase client can encode the struct directly
+            .execute()
+        // print("Driver location inserted for trip: \(location.trip_id)")
+    }
+
+    // Function to fetch the latest location for a specific trip
+    func fetchLatestDriverLocation(forTripId tripId: UUID) async throws -> DriverLocation? {
+        let response: [DriverLocation] = try await client
+            .from("driver_locations")
+            .select()
+            .eq("trip_id", value: tripId)
+            .order("timestamp", ascending: false) // Get the most recent
+            .limit(1)
+            .execute()
+            .value
+        return response.first
+    }
+
+    // Function to fetch location history for a trip (e.g., for drawing a snail trail)
+    func fetchDriverLocationHistory(forTripId tripId: UUID, since: Date? = nil, limit: Int = 100) async throws -> [DriverLocation] {
+        // Start with the basic query builder targeting the table
+        var query = client.from("driver_locations")
+
+        // Build the filter expression first
+        var filterBuilder = query
+            .select() // This returns PostgrestFilterBuilder
+            .eq("trip_id", value: tripId.uuidString) // Filter by trip_id
+
+        // Apply the 'greater than' filter if 'sinceDate' is provided
+        if let sinceDate = since {
+            let isoDateString = ISO8601DateFormatter().string(from: sinceDate)
+            // Apply .gt() to the filterBuilder
+            filterBuilder = filterBuilder.gt("timestamp", value: isoDateString)
+        }
+
+        // Now apply ordering and limit to the potentially filtered builder
+        let finalQueryBuilder = filterBuilder
+            .order("timestamp", ascending: true) // Oldest to newest for drawing path
+            .limit(limit)
+
+        // Execute the final query
+        let response: [DriverLocation] = try await finalQueryBuilder.execute().value
+        return response
+    }
+
+
+    // MARK: - Route Deviation Warnings
+    func insertRouteDeviationWarning(warning: RouteDeviationWarning) async throws {
+        try await client
+            .from("route_deviation_warnings")
+            .insert(warning)
+            .execute()
+        print("Route deviation warning inserted for trip: \(warning.trip_id)")
+    }
+
+    func fetchRouteDeviationWarnings(forTripId tripId: UUID) async throws -> [RouteDeviationWarning] {
+        let response: [RouteDeviationWarning] = try await client
+            .from("route_deviation_warnings")
+            .select()
+            .eq("trip_id", value: tripId)
+            .order("timestamp", ascending: false)
+            .execute()
+            .value
+        return response
+    }
+    
+    func approveIssueReport(reportId: UUID, adminId: UUID, vehicleId: UUID?) async throws {
+        print("SupabaseManager: Approving issue report \(reportId) by admin \(adminId)...")
+        
+        // --- Update Issue Report ---
+        // Include both status and admin_id in the update dictionary
+        let reportUpdateData: [String: String] = [  // <-- Change type to [String: String]
+                "status": "In Progress",              // String is Encodable
+                "admin_id": adminId.uuidString        // String is Encodable
+            ]
+
+        do {
+            try await client
+                .from("issue_reports")
+                .update(reportUpdateData) // Use the dictionary with both fields
+                .eq("id", value: reportId.uuidString) // Match by report UUID string
+                .execute()
+            print("SupabaseManager: Issue report \(reportId) status and admin_id updated.")
+        } catch {
+            print("SupabaseManager: Error updating issue report \(reportId): \(error)")
+            throw error // Re-throw error to be caught by caller
+        }
+
+        // --- Update Vehicle Status ---
+        guard let vId = vehicleId else {
+            print("SupabaseManager: No vehicleId provided for issue report \(reportId). Skipping vehicle status update.")
+            return // Exit if no vehicle ID
+        }
+
+        print("SupabaseManager: Updating vehicle \(vId) status to 'garage'...")
+        do {
+            // Use the correct enum raw value for the status
+            try await client // Or serviceClient if permissions require it
+                .from("vehicle_details")
+                .update(["status": Vehicle.VehicleStatus.garage.rawValue])
+                .eq("id", value: vId.uuidString) // Match by vehicle UUID string
+                .execute()
+            print("SupabaseManager: Vehicle \(vId) status updated to 'garage'.")
+        } catch {
+            print("SupabaseManager: Error updating vehicle \(vId) status: \(error)")
+            // Decide if this error should stop the whole process or just be logged.
+            // For now, we'll let it throw.
+            throw error
+        }
+    }
+    
+    func fetchTrip(byConsignmentID consignmentInternalId: UUID) async throws -> Trip? {
+        print("SupabaseManager: Fetching trip by consignment_id: \(consignmentInternalId)...")
+        let response: [Trip] = try await client
+            .from("trips") // Your trips table name
+            .select("*")   // Select all columns from Trip
+            .eq("consignment_id", value: consignmentInternalId.uuidString) // Match by consignment_id
+            .limit(1)      // Assuming one trip per consignment for this context
+            .execute()
+            .value
+        
+        if let trip = response.first {
+            print("SupabaseManager: Successfully fetched trip (ID: \(trip.id?.uuidString ?? "N/A")) for consignment \(consignmentInternalId)")
+            return trip
+        } else {
+            print("SupabaseManager: No trip found for consignment \(consignmentInternalId)")
+            return nil
+        }
+    }
+    
+    func fetchAllRouteDeviationWarnings(limit: Int = 50) async throws -> [RouteDeviationWarning] {
+        print("SupabaseManager: Fetching all route deviation warnings (limit \(limit))...")
+        let response: [RouteDeviationWarning] = try await client
+            .from("route_deviation_warnings")
+            .select() // Select all columns
+            .order("timestamp", ascending: false) // Most recent first
+            .limit(limit) // Limit the number of warnings fetched
+            .execute()
+            .value // Decodes into [RouteDeviationWarning]
+        print("SupabaseManager: Fetched \(response.count) deviation warnings.")
+        return response
+    }
+
+    // Function to fetch a specific DriverProfile by their ID
+    func fetchDriverProfile(byId driverId: UUID) async throws -> DriverProfile? {
+        print("SupabaseManager: Fetching driver profile for ID: \(driverId)")
+        let response: [DriverProfile] = try await client
+            .from("driver_profiles") // Your driver profiles table name
+            .select() // Select all desired columns from driver_profiles
+            .eq("id", value: driverId.uuidString) // Match by the driver's UUID
+            .limit(1)
+            .execute()
+            .value
+        
+        if let profile = response.first {
+            print("SupabaseManager: Found driver profile for \(driverId): \(profile.name ?? "N/A")")
+            return profile
+        } else {
+            print("SupabaseManager: No driver profile found for ID: \(driverId)")
+            return nil
+        }
+    }
+
+    
 }
 
 struct NewVehicle: Encodable {
